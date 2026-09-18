@@ -1,16 +1,18 @@
 {
-  "UserPromptSubmit": [
-    {
-      "hooks": [
-        { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/gap-notice.sh prompt" }
-      ]
-    }
-  ],
-  "Stop": [
-    {
-      "hooks": [
-        { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/gap-notice.sh stop" }
-      ]
-    }
-  ]
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/gap-notice.sh prompt" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/gap-notice.sh stop" }
+        ]
+      }
+    ]
+  }
 }
