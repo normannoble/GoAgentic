@@ -240,6 +240,7 @@ All agents are invoked through the `/agents:start` router (from the `agents` plu
 /agents:status [scope]        — live org status board
 /agents:next [scope]          — the single next best action
 /agents:doctor [name]         — health review, recommends fixes
+/agents:harness               — which CLI each agent runs under (peer + ticks)
 /agents:help [command]        — the guide
 /agents:ask <name> "<request>" — ask a peer agent (Herdr only)
 ```

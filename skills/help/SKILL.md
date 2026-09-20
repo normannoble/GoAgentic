@@ -2,7 +2,7 @@
 description: How the agents plugin works — the commands, the flow from setup to daily use, what an agent is made of, and fixes for common problems. Use /agents:help, or /agents:help <command> for one command.
 disable-model-invocation: true
 allowed-tools: Read, Glob
-argument-hint: [start|wrap|close|list|status|next|doctor|schedule|ask|new|init]
+argument-hint: [start|wrap|close|list|status|next|doctor|harness|schedule|ask|new|init]
 ---
 
 # /agents:help — Guide
@@ -32,6 +32,7 @@ An **agent** is a named, persistent collaborator that lives in this repo as mark
 | `/agents:status` | Live board: each agent's role, current focus, and freshness. |
 | `/agents:next` | The single next best action across all agents, and why. |
 | `/agents:doctor` | Health review. Finds bloat, stale trackers, missing files. Recommends fixes. Changes nothing. |
+| `/agents:harness` | Show which CLI each agent runs under — peer sessions and ticks — and whether it is installed. Changes nothing. |
 | `/agents:ask <name> "<request>"` | Ask another agent in this workspace. Opens a pane, runs it as a peer, reads its written reply, closes the pane. Herdr only. |
 | `/agents:schedule` | Unattended tasks. `add`, `list`, `remove <id>`, `enable`/`disable <id>`, `status`, `install` (the hourly timer). |
 | `/agents:help <command>` | Details for one command. |

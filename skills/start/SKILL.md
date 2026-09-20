@@ -53,6 +53,7 @@ Show a brief help message:
 /agents:status                — live status board (add <scope>)
 /agents:next                  — the single next best action (add <scope>)
 /agents:doctor                — health review (add <name>)
+/agents:harness               — which CLI each agent runs under
 /agents:schedule              — unattended tasks (add, list, status, install)
 /agents:new                   — build a new agent
 /agents:help                  — the guide
