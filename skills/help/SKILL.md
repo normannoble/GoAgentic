@@ -2,7 +2,7 @@
 description: How the agents plugin works — the commands, the flow from setup to daily use, what an agent is made of, and fixes for common problems. Use /agents:help, or /agents:help <command> for one command.
 disable-model-invocation: true
 allowed-tools: Read, Glob
-argument-hint: [start|list|status|next|doctor|schedule|ask|new|init]
+argument-hint: [start|wrap|close|list|status|next|doctor|schedule|ask|new|init]
 ---
 
 # /agents:help — Guide
@@ -26,6 +26,8 @@ An **agent** is a named, persistent collaborator that lives in this repo as mark
 | `/agents:start <name>` | Start an agent. It reads its files and tells you its priorities. |
 | `/agents:start <name> <topic>` | Start an agent and work on one thing. |
 | `/agents:start <name> close` | End the session. The agent saves memory and updates its tracker. |
+| `/agents:wrap` | End the active session and save state (memory, tracker, commit). Run from inside the session; no name needed. |
+| `/agents:close` | Same as `/agents:wrap`, then clears the conversation for a fresh start. |
 | `/agents:list` | List agents. Add `<scope>` to filter, `all` to include retired ones. |
 | `/agents:status` | Live board: each agent's role, current focus, and freshness. |
 | `/agents:next` | The single next best action across all agents, and why. |
@@ -37,7 +39,7 @@ An **agent** is a named, persistent collaborator that lives in this repo as mark
 ## The flow
 
 1. **First time in a repo:** `/agents:init`, then `/agents:new`.
-2. **Each working session:** `/agents:start <name>` (or with a topic). Do the work. `/agents:start <name> close` when done.
+2. **Each working session:** `/agents:start <name>` (or with a topic). Do the work. `/agents:wrap` when done (or `/agents:close` to also clear the context).
 3. **When you do not know where to go:** `/agents:status` for the whole board, `/agents:next` for the one move.
 4. **Once a week or so:** `/agents:doctor`. Run the commands it gives you.
 5. **When one agent needs another:** `/agents:ask <name> "<request>"` from inside the asking agent's session. Same workspace only. The reply lands in `agents/<Name>/peer/`.

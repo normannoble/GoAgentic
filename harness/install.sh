@@ -47,7 +47,7 @@ WORKSPACE="$(cd "$WORKSPACE" && pwd)"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ -f "$ROOT/skills/start/SKILL.md" ]] || { echo "not a framework checkout: $ROOT" >&2; exit 1; }
 
-SKILLS=(help init new start list status next doctor ask schedule)
+SKILLS=(help init new start wrap close list status next doctor ask schedule)
 
 # The command a user types in this harness. Mirrors the table in template/agents/reference/peer.md.
 case "$HARNESS" in

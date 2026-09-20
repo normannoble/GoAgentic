@@ -46,6 +46,8 @@ Show a brief help message:
 /agents:start <name>          — activate an agent
 /agents:start <name> <topic>  — activate and work on a topic
 /agents:start <name> close    — end the session and save state
+/agents:wrap                  — end the active session (from inside it)
+/agents:close                 — end the active session, then clear context
 /agents:ask <name> "<request>"  — ask a peer agent (Herdr only)
 /agents:list                  — list all agents (add <scope> or all)
 /agents:status                — live status board (add <scope>)

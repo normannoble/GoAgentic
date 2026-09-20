@@ -234,6 +234,8 @@ All agents are invoked through the `/agents:start` router (from the `agents` plu
 /agents:start <name>          — activate an agent (status check)
 /agents:start <name> <topic>  — activate and work on a topic
 /agents:start <name> close    — end session and save state
+/agents:wrap                  — end the active session (from inside it)
+/agents:close                 — end the active session, then /clear
 /agents:list [scope|all]      — list agents
 /agents:status [scope]        — live org status board
 /agents:next [scope]          — the single next best action
@@ -334,7 +336,7 @@ The agent should not silently allow session priorities to be displaced by conver
 
 ## Session End Protocol
 
-Triggered by `/agents:start <name> close`, `end`, `wrap up`, or when {{PRINCIPAL}} signals the session is ending. **When triggered, read `reference/session-end.md` (beside this file) and follow all eight steps:** review the session, update the action tracker, review autonomy, write the session memory, update MEMORY.md, update project files, commit and push, confirm. Do not skip steps and do not improvise the order.
+Triggered by `/agents:wrap`, `/agents:close`, `/agents:start <name> close`, `end`, `wrap up`, or when {{PRINCIPAL}} signals the session is ending (`/agents:close` also runs `/clear` after the protocol completes). **When triggered, read `reference/session-end.md` (beside this file) and follow all eight steps:** review the session, update the action tracker, review autonomy, write the session memory, update MEMORY.md, update project files, commit and push, confirm. Do not skip steps and do not improvise the order.
 
 ## Session Continuity
 
