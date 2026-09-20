@@ -171,7 +171,7 @@ func componentChoices(prompted componentState) []huh.Option[string] {
 	choices := make([]huh.Option[string], 0, 3)
 	if prompted.skills {
 		choices = append(choices,
-			huh.NewOption("Claude Code skills  /agents:help, start, list, status, next, doctor, new", "skills"),
+			huh.NewOption("Claude Code skills  /agents:help, start, wrap, close, list, status, next, doctor, harness, schedule, ask, new", "skills"),
 		)
 	}
 	if prompted.workspace {

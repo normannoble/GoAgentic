@@ -1,4 +1,4 @@
-# Agent Framework
+# GoAgentic
 
 A convention-based system for building persistent AI collaboration partners in [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Agents that challenge your thinking, drive the agenda, and hold you accountable — not task runners that wait for instructions.
 
@@ -38,10 +38,13 @@ This gives every project these skills:
 | `/agents:init` | Set up the current repo as a workspace (run once) |
 | `/agents:new` | Design and create an agent |
 | `/agents:start <name>` | Run an agent (`<name> <topic>` to work on something, `<name> close` to end) |
+| `/agents:wrap` | End the active session from inside it — save tracker, memory, and commit |
+| `/agents:close` | Same as `/agents:wrap`, then clears the conversation for a fresh start |
 | `/agents:list` | List agents (`<scope>` to filter, `all` to include retired) |
 | `/agents:status` | Live org status board |
 | `/agents:next` | The single next best action across the org |
 | `/agents:doctor` | Health review: startup cost, tracker and memory hygiene, staleness. Read-only, recommends the next commands |
+| `/agents:harness` | Show which CLI each agent runs under — peer sessions and ticks — and whether it is installed. Read-only |
 | `/agents:ask` | Ask another agent in the same workspace (Herdr only): fresh pane, peer session, written reply, pane closed |
 | `/agents:schedule` | Unattended tasks: `add`, `list`, `remove`, `enable`, `disable`, `status`, `install` the hourly launchd/cron timer. A gate script runs Claude only when a task is due |
 
@@ -85,7 +88,7 @@ It writes thin wrapper skills into `.agents/skills/agents-<cmd>/` (the Agent Ski
 If you would rather have every file inside your repo, with the same `/agents:*` commands:
 
 ```bash
-curl -fsSL https://agent-framework.sh/install.sh | sh
+curl -fsSL https://goagentic.sh/install.sh | sh
 ```
 
 The installer downloads the release asset for your operating system and architecture, verifies its SHA-256 checksum, and opens an interactive terminal wizard. It collects the target repository, principal, naming tradition, and optional components, then shows the complete installation plan before writing anything. No Python or Go installation is required.
@@ -109,7 +112,7 @@ The CLI is written in Go and uses Charm's [Huh](https://github.com/charmbracelet
 `install.sh` is the release bootstrap served by the project domain:
 
 ```bash
-curl -fsSL https://agent-framework.sh/install.sh | sh
+curl -fsSL https://goagentic.sh/install.sh | sh
 ```
 
 The bootstrap detects macOS or Linux and ARM64 or AMD64, downloads the pinned binary from GitHub Releases, verifies the adjacent `.sha256` file, and runs `goagentic init`. The temporary binary is removed when setup exits.
@@ -159,7 +162,7 @@ Always increment the version for a new release. Do not move or reuse an existing
 The same installer has a fully non-interactive interface:
 
 ```bash
-curl -fsSL https://agent-framework.sh/install.sh | sh -s -- ./my-repo \
+curl -fsSL https://goagentic.sh/install.sh | sh -s -- ./my-repo \
   --principal Fauzaan \
   --naming roman \
   --skills \
@@ -193,15 +196,17 @@ The framework installs two layers of conventions and the runtime skills:
 ### Runtime Skills
 
 - **`skills/start/SKILL.md`** — Router skill that activates agents (`/agents:start <name>`)
+- **`skills/wrap/SKILL.md`**, **`skills/close/SKILL.md`** — End the session (`/agents:wrap`, `/agents:close`); `close` also clears the conversation
 - **`skills/list/SKILL.md`**, **`skills/status/SKILL.md`**, **`skills/next/SKILL.md`** — Org views (`/agents:list`, `/agents:status`, `/agents:next`)
 - **`skills/help/SKILL.md`** — In-product guide (`/agents:help`)
 - **`skills/doctor/SKILL.md`** — Health review (`/agents:doctor`); thresholds mirror the master conventions
+- **`skills/harness/SKILL.md`** — Harness view (`/agents:harness`); which CLI each agent runs under, peer and ticks
 - **`skills/ask/SKILL.md`** — Peer request (`/agents:ask`); protocol in `template/agents/reference/peer.md`
 - **`skills/schedule/SKILL.md`** — Scheduled tasks (`/agents:schedule`); edits `agents/scheduled-tasks.md` and installs the timer from `template/agents/scheduler/`
 - **`skills/new/SKILL.md`** — Builder skill for interactive agent creation (`/agents:new`)
 - **`skills/init/SKILL.md`** — Workspace setup (`/agents:init`; marketplace plugin only — the installer does this job in copied mode)
 
-In plugin mode the skills come from the plugin and are namespaced (`/agents:help`, `/agents:start`, `/agents:list`, `/agents:status`, `/agents:next`, `/agents:doctor`, `/agents:schedule`, `/agents:ask`, `/agents:new`, `/agents:init`). In copied mode the installer writes a small in-repo plugin at `.claude/skills/agents/` (manifest plus the `help`, `start`, `list`, `status`, `next`, `doctor`, `schedule`, `ask`, and `new` skills). Claude Code loads it as `agents@skills-dir` once the folder is trusted, so the commands are the same. Browsing copies are synced to `agents/skills/`. Do not also install the marketplace plugin in that repo, or both will answer to the same names.
+In plugin mode the skills come from the plugin and are namespaced (`/agents:help`, `/agents:start`, `/agents:wrap`, `/agents:close`, `/agents:list`, `/agents:status`, `/agents:next`, `/agents:doctor`, `/agents:harness`, `/agents:schedule`, `/agents:ask`, `/agents:new`, `/agents:init`). In copied mode the installer writes a small in-repo plugin at `.claude/skills/agents/` (manifest plus the `help`, `start`, `wrap`, `close`, `list`, `status`, `next`, `doctor`, `harness`, `schedule`, `ask`, and `new` skills). Claude Code loads it as `agents@skills-dir` once the folder is trusted, so the commands are the same. Browsing copies are synced to `agents/skills/`. Do not also install the marketplace plugin in that repo, or both will answer to the same names.
 
 The master conventions load a lean core at every agent start. Long procedures (session end, memory consolidation, tooling admin, playbook format, and so on) live in `template/agents/reference/` and are read only when needed.
 
@@ -359,10 +364,13 @@ your-repo/
             └── skills/
                 ├── help/SKILL.md
                 ├── start/SKILL.md
+                ├── wrap/SKILL.md
+                ├── close/SKILL.md
                 ├── list/SKILL.md
                 ├── status/SKILL.md
                 ├── next/SKILL.md
                 ├── doctor/SKILL.md
+                ├── harness/SKILL.md
                 ├── schedule/SKILL.md
                 ├── ask/SKILL.md
                 └── new/SKILL.md

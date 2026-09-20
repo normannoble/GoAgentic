@@ -2,7 +2,7 @@
 set -eu
 
 # Public bootstrap for:
-#   curl -fsSL https://agent-framework.sh/install.sh | sh
+#   curl -fsSL https://goagentic.sh/install.sh | sh
 #
 # Release binaries are built from the GitHub repository for each supported
 # operating system and architecture. AGENT_FRAMEWORK_BINARY is a local-only

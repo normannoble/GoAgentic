@@ -2,7 +2,7 @@
 set -eu
 
 # Compatibility entrypoint. New installations should use:
-#   curl -fsSL https://agent-framework.sh/install.sh | sh
+#   curl -fsSL https://goagentic.sh/install.sh | sh
 
 case $0 in
     *init.sh)
@@ -20,5 +20,5 @@ if ! command -v curl >/dev/null 2>&1; then
     exit 1
 fi
 
-INSTALL_URL=${AGENT_FRAMEWORK_INSTALL_URL:-https://agent-framework.sh/install.sh}
+INSTALL_URL=${AGENT_FRAMEWORK_INSTALL_URL:-https://goagentic.sh/install.sh}
 curl -fsSL "$INSTALL_URL" | sh -s -- "$@"

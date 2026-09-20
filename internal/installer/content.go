@@ -169,7 +169,8 @@ type skillPaths struct {
 // PluginDir is the in-repo plugin folder. Any folder under .claude/skills/ that
 // carries .claude-plugin/plugin.json is loaded by Claude Code as a project
 // plugin named "agents@skills-dir", so its skills are namespaced (/agents:help, /agents:start,
-// /agents:list, /agents:status, /agents:next, /agents:doctor, /agents:schedule, /agents:ask, /agents:new) — the same commands
+// /agents:wrap, /agents:close, /agents:list, /agents:status, /agents:next, /agents:doctor, /agents:harness,
+// /agents:schedule, /agents:ask, /agents:new) — the same commands
 // the marketplace plugin provides.
 const PluginDir = ".claude/skills/agents"
 
@@ -179,10 +180,13 @@ const PluginManifestPath = PluginDir + "/.claude-plugin/plugin.json"
 var skills = []skillPaths{
 	{Name: "help", Canonical: PluginDir + "/skills/help/SKILL.md", Mirror: "agents/skills/help/SKILL.md"},
 	{Name: "start", Canonical: PluginDir + "/skills/start/SKILL.md", Mirror: "agents/skills/start/SKILL.md"},
+	{Name: "wrap", Canonical: PluginDir + "/skills/wrap/SKILL.md", Mirror: "agents/skills/wrap/SKILL.md"},
+	{Name: "close", Canonical: PluginDir + "/skills/close/SKILL.md", Mirror: "agents/skills/close/SKILL.md"},
 	{Name: "list", Canonical: PluginDir + "/skills/list/SKILL.md", Mirror: "agents/skills/list/SKILL.md"},
 	{Name: "status", Canonical: PluginDir + "/skills/status/SKILL.md", Mirror: "agents/skills/status/SKILL.md"},
 	{Name: "next", Canonical: PluginDir + "/skills/next/SKILL.md", Mirror: "agents/skills/next/SKILL.md"},
 	{Name: "doctor", Canonical: PluginDir + "/skills/doctor/SKILL.md", Mirror: "agents/skills/doctor/SKILL.md"},
+	{Name: "harness", Canonical: PluginDir + "/skills/harness/SKILL.md", Mirror: "agents/skills/harness/SKILL.md"},
 	{Name: "schedule", Canonical: PluginDir + "/skills/schedule/SKILL.md", Mirror: "agents/skills/schedule/SKILL.md"},
 	{Name: "ask", Canonical: PluginDir + "/skills/ask/SKILL.md", Mirror: "agents/skills/ask/SKILL.md"},
 	{Name: "new", Canonical: PluginDir + "/skills/new/SKILL.md", Mirror: "agents/skills/new/SKILL.md"},
