@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	agentframework "github.com/normannoble/agent-framework"
+	agentframework "github.com/normannoble/GoAgentic"
 )
 
 func repositoryRoot(t *testing.T) string {
@@ -88,7 +88,7 @@ func platformAsset(t *testing.T, version string) string {
 	if runtime.GOARCH != "arm64" && runtime.GOARCH != "amd64" {
 		t.Skipf("bootstrap does not support %s", runtime.GOARCH)
 	}
-	return fmt.Sprintf("agent-framework_%s_%s_%s", version, runtime.GOOS, runtime.GOARCH)
+	return fmt.Sprintf("goagentic_%s_%s_%s", version, runtime.GOOS, runtime.GOARCH)
 }
 
 func releaseBaseURL(t *testing.T, directory string) string {
@@ -241,7 +241,7 @@ func TestPipedCompatibilityWrapperLoadsCanonicalInstaller(t *testing.T) {
 	requireDownloadTools(t)
 	root := repositoryRoot(t)
 	temporary := t.TempDir()
-	fakeBinary := filepath.Join(temporary, "local-agent-framework")
+	fakeBinary := filepath.Join(temporary, "local-goagentic")
 	argumentsFile := filepath.Join(temporary, "wrapper-arguments.txt")
 	writeFakeBinary(t, fakeBinary, argumentsFile)
 	initScript, err := os.ReadFile(filepath.Join(root, "init.sh"))
@@ -340,7 +340,7 @@ chmod 0755 "$output"
 		"CGO_ENABLED=0\n",
 		"build\n",
 		"-trimpath\n",
-		"./cmd/agent-framework\n",
+		"./cmd/goagentic\n",
 	} {
 		if !strings.Contains(string(buildInvocation), expected) {
 			t.Errorf("go invocation is missing %q: %s", expected, buildInvocation)
@@ -380,7 +380,7 @@ func TestDistributionContractStaysInSync(t *testing.T) {
 		t.Fatalf("install.sh version does not match Go version %s", agentframework.Version)
 	}
 	for _, fragment := range []string{
-		`ASSET="agent-framework_${VERSION}_${OS}_${ARCH}"`,
+		`ASSET="goagentic_${VERSION}_${OS}_${ARCH}"`,
 		`non_interactive_requested()`,
 		`if non_interactive_requested "$@"; then`,
 		`if [ -t 0 ] && [ -t 1 ]; then`,
@@ -397,7 +397,7 @@ func TestDistributionContractStaysInSync(t *testing.T) {
 	for _, fragment := range []string{
 		`SCRIPT_DIR=$(CDPATH='' cd`,
 		"GO111MODULE=on CGO_ENABLED=0 go build",
-		"./cmd/agent-framework",
+		"./cmd/goagentic",
 		`non_interactive_requested()`,
 		`if non_interactive_requested "$@"; then`,
 		`if [ -t 0 ] && [ -t 1 ]; then`,

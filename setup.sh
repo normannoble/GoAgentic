@@ -16,16 +16,16 @@ if ! command -v go >/dev/null 2>&1; then
     exit 1
 fi
 
-TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/agent-framework.XXXXXX")
+TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/goagentic.XXXXXX")
 trap 'rm -rf "$TEMP_DIR"' 0
 trap 'exit 129' 1
 trap 'exit 130' 2
 trap 'exit 143' 15
 
-BINARY="$TEMP_DIR/agent-framework"
+BINARY="$TEMP_DIR/goagentic"
 (
     cd "$SCRIPT_DIR"
-    GO111MODULE=on CGO_ENABLED=0 go build -trimpath -o "$BINARY" ./cmd/agent-framework
+    GO111MODULE=on CGO_ENABLED=0 go build -trimpath -o "$BINARY" ./cmd/goagentic
 )
 
 flag_value_is_true() {

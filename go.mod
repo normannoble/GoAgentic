@@ -1,4 +1,4 @@
-module github.com/normannoble/agent-framework
+module github.com/normannoble/GoAgentic
 
 go 1.25.8
 

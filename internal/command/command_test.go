@@ -17,7 +17,7 @@ func TestVersionOutput(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code = %d, stderr = %q", code, stderr.String())
 	}
-	if got, want := stdout.String(), "agent-framework 0.1.0\n"; got != want {
+	if got, want := stdout.String(), "goagentic 0.1.0\n"; got != want {
 		t.Fatalf("stdout = %q; want %q", got, want)
 	}
 }

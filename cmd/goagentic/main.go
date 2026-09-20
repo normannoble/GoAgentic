@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/normannoble/agent-framework/internal/command"
+	"github.com/normannoble/GoAgentic/internal/command"
 )
 
 func main() {

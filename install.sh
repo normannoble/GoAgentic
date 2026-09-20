@@ -9,10 +9,10 @@ set -eu
 # escape hatch for testing an unpublished binary.
 
 VERSION=${AGENT_FRAMEWORK_VERSION:-0.1.0}
-REPOSITORY=${AGENT_FRAMEWORK_REPOSITORY:-normannoble/agent-framework}
+REPOSITORY=${AGENT_FRAMEWORK_REPOSITORY:-normannoble/GoAgentic}
 RELEASE_BASE=${AGENT_FRAMEWORK_RELEASE_BASE:-"https://github.com/${REPOSITORY}/releases/download/v${VERSION}"}
 
-TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/agent-framework.XXXXXX")
+TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/goagentic.XXXXXX")
 trap 'rm -rf "$TEMP_DIR"' 0
 trap 'exit 129' 1
 trap 'exit 130' 2
@@ -29,7 +29,7 @@ sha256_file() {
     fi
 }
 
-BINARY="$TEMP_DIR/agent-framework"
+BINARY="$TEMP_DIR/goagentic"
 
 if [ -n "${AGENT_FRAMEWORK_BINARY:-}" ]; then
     if [ ! -f "$AGENT_FRAMEWORK_BINARY" ]; then
@@ -61,7 +61,7 @@ else
             ;;
     esac
 
-    ASSET="agent-framework_${VERSION}_${OS}_${ARCH}"
+    ASSET="goagentic_${VERSION}_${OS}_${ARCH}"
     CHECKSUM="$TEMP_DIR/$ASSET.sha256"
     curl -LsSf "$RELEASE_BASE/$ASSET" -o "$BINARY"
     curl -LsSf "$RELEASE_BASE/$ASSET.sha256" -o "$CHECKSUM"

@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	agentframework "github.com/normannoble/agent-framework"
-	"github.com/normannoble/agent-framework/internal/installer"
-	frameworkui "github.com/normannoble/agent-framework/internal/ui"
+	agentframework "github.com/normannoble/GoAgentic"
+	"github.com/normannoble/GoAgentic/internal/installer"
+	frameworkui "github.com/normannoble/GoAgentic/internal/ui"
 )
 
 const nonInteractiveError = "Non-interactive installation requires --yes, or use --dry-run to inspect the plan."
@@ -55,7 +55,7 @@ func (e *exitError) Unwrap() error { return e.cause }
 // streams, which keeps both the executable and tests on the same code path.
 func NewRootCommand(in io.Reader, out io.Writer, errOut io.Writer) *cobra.Command {
 	root := &cobra.Command{
-		Use:           "agent-framework",
+		Use:           "goagentic",
 		Short:         "Install and update the Agent Framework in a repository.",
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -64,7 +64,7 @@ func NewRootCommand(in io.Reader, out io.Writer, errOut io.Writer) *cobra.Comman
 			return cmd.Help()
 		},
 	}
-	root.SetVersionTemplate("agent-framework {{.Version}}\n")
+	root.SetVersionTemplate("goagentic {{.Version}}\n")
 	root.InitDefaultVersionFlag()
 	if versionFlag := root.Flags().Lookup("version"); versionFlag != nil {
 		versionFlag.Shorthand = ""

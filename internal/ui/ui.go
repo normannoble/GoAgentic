@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/normannoble/agent-framework/internal/installer"
+	"github.com/normannoble/GoAgentic/internal/installer"
 	"github.com/pmezard/go-difflib/difflib"
 )
 

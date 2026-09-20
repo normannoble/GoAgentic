@@ -72,4 +72,4 @@ agents/<Name>/
 - **Update the plugin:** `claude plugin marketplace update normannoble && claude plugin update agents@normannoble`, then restart.
 - **Use the agents from Codex, Gemini CLI, or OpenCode.** Clone the framework repo and run `bash harness/install.sh <codex|gemini|opencode> <workspace>`. Same agents, same files. Commands are `$agents-start <name>` in Codex, `/agents:start <name>` in Gemini, `/agents-start <name>` in OpenCode.
 
-Source and docs: https://github.com/normannoble/agent-framework
+Source and docs: https://github.com/normannoble/GoAgentic

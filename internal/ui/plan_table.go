@@ -6,7 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/lipgloss/v2"
-	"github.com/normannoble/agent-framework/internal/installer"
+	"github.com/normannoble/GoAgentic/internal/installer"
 	"golang.org/x/term"
 )
 

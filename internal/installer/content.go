@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	agentframework "github.com/normannoble/agent-framework"
+	agentframework "github.com/normannoble/GoAgentic"
 )
 
 // NamingProfiles is the complete set of supported naming traditions.

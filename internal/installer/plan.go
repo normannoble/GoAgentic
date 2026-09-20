@@ -19,7 +19,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	agentframework "github.com/normannoble/agent-framework"
+	agentframework "github.com/normannoble/GoAgentic"
 )
 
 var unownedAgentsHeading = regexp.MustCompile(`(?m)^## Agents\s*$`)

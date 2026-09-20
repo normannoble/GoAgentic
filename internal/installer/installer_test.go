@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	agentframework "github.com/normannoble/agent-framework"
+	agentframework "github.com/normannoble/GoAgentic"
 )
 
 func gitRepo(t *testing.T) string {

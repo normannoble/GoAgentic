@@ -19,14 +19,14 @@ See [PHILOSOPHY.md](PHILOSOPHY.md) for the full position.
 Inside Claude Code:
 
 ```
-/plugin marketplace add normannoble/agent-framework
+/plugin marketplace add normannoble/GoAgentic
 /plugin install agents@normannoble
 ```
 
 Or from the shell:
 
 ```bash
-claude plugin marketplace add normannoble/agent-framework
+claude plugin marketplace add normannoble/GoAgentic
 claude plugin install agents@normannoble
 ```
 
@@ -95,8 +95,8 @@ The installer downloads the release asset for your operating system and architec
 Developing the installer requires Go 1.25.8 or newer:
 
 ```bash
-git clone https://github.com/normannoble/agent-framework.git
-cd agent-framework
+git clone https://github.com/normannoble/GoAgentic.git
+cd GoAgentic
 ./setup.sh
 ```
 
@@ -112,17 +112,17 @@ The CLI is written in Go and uses Charm's [Huh](https://github.com/charmbracelet
 curl -fsSL https://agent-framework.sh/install.sh | sh
 ```
 
-The bootstrap detects macOS or Linux and ARM64 or AMD64, downloads the pinned binary from GitHub Releases, verifies the adjacent `.sha256` file, and runs `agent-framework init`. The temporary binary is removed when setup exits.
+The bootstrap detects macOS or Linux and ARM64 or AMD64, downloads the pinned binary from GitHub Releases, verifies the adjacent `.sha256` file, and runs `goagentic init`. The temporary binary is removed when setup exits.
 
 To test that exact release path locally from Nushell before publishing:
 
 ```nu
 with-env {GO111MODULE: on} {
-  go build -o dist/agent-framework ./cmd/agent-framework
+  go build -o dist/goagentic ./cmd/goagentic
 }
 let target = (mktemp -d)
 git -C $target init -q
-$env.AGENT_FRAMEWORK_BINARY = (pwd | path join dist agent-framework)
+$env.AGENT_FRAMEWORK_BINARY = (pwd | path join dist goagentic)
 ./install.sh $target
 hide-env AGENT_FRAMEWORK_BINARY
 ```
@@ -412,7 +412,7 @@ Then restart Claude Code. The Go installer has its own release flow (below); a p
 To see edits instantly without a release, symlink the checkout itself into your user skills folder. The repo root already has the plugin layout, so it loads as `agents@skills-dir` with the same `/agents:*` commands:
 
 ```bash
-ln -s /path/to/agent-framework ~/.claude/skills/agents
+ln -s /path/to/GoAgentic ~/.claude/skills/agents
 ```
 
 Uninstall the marketplace copy first (`claude plugin uninstall agents@normannoble`), or both will answer to the same names.

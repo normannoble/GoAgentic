@@ -6,7 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/normannoble/agent-framework/internal/installer"
+	"github.com/normannoble/GoAgentic/internal/installer"
 )
 
 func TestPlanTableRendersEveryChangeWithoutSelectionDecoration(t *testing.T) {
