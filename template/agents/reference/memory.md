@@ -13,7 +13,7 @@ Use these in the `type` frontmatter field:
 ### Baseline Consolidation
 
 When the agent has accumulated more than 5 standing entries or more than 10 session entries, consolidate:
-- Create a new baseline entry in `memory/standing/` that captures **every** durable rule, decision, path, ID, and threshold from the existing standing entries (losing a rule is the failure mode; length is not)
+- Create a new baseline entry in `memory/standing/` that captures **every** durable rule, decision, path, ID, and threshold from the existing standing entries (losing a rule is the failure mode). **Keep the baseline itself under ~15 KB (≈ one page)** — it holds rules, decisions, IDs and thresholds, not raw data. If source detail (logs, inventories, scan output, long transcripts) would push it over, that detail moves to `work/` or `knowledge/` and the baseline keeps a one-line pointer to it. A standing file over 15 KB is what `/agents:doctor` fails on.
 - Move the superseded standing entries to `memory/archive/standing/`
 - Keep the 10 most recent session entries; move the rest to `memory/archive/sessions/`
 - Write `memory/archive/INDEX.md` listing every archived file with its one-line summary
