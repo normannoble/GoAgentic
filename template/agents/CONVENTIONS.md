@@ -389,7 +389,7 @@ Present only for agents with scheduled tasks. Holds `inbox.md` — the rolling l
 
 Frontmatter `type` values, the full consolidation procedure, and the workspace-memory file format are in `reference/memory.md`.
 
-**Consolidation trigger (check every startup):** more than 5 standing entries or more than 10 session entries means consolidate this session or next — read `reference/memory.md` and do it. Everything in `memory/standing/` and all of MEMORY.md is read at every startup; a 40-entry standing memory costs ~60k tokens before the agent says hello. Large data files (exports, scans, dumps) never belong in `memory/standing/` — put them under `work/` or `knowledge/` and leave a one-page summary that points to them.
+**Consolidation trigger (check every startup):** more than 5 standing entries, more than 10 session entries, or any single standing file over ~15 KB means consolidate this session or next — read `reference/memory.md` and do it. (The size clause matters because the count triggers miss it: one oversized baseline in an otherwise-small memory never trips the counts, yet it is what `/agents:doctor` fails on.) Everything in `memory/standing/` and all of MEMORY.md is read at every startup; a 40-entry standing memory costs ~60k tokens before the agent says hello. Large data files (exports, scans, dumps) never belong in `memory/standing/` — put them under `work/` or `knowledge/` and leave a one-page summary that points to them.
 
 When you discover operational knowledge worth persisting — a tool config, a workaround, a convention the user corrects you on — write it to your own `memory/standing/`.
 
