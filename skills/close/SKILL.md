@@ -2,7 +2,7 @@
 name: close
 description: End the current agent session, save its state, and then clear the conversation for a clean start. It is /agents:wrap followed by /clear. Run it from inside an active agent session; no name needed. Use /agents:wrap instead if you want to keep the conversation open after saving.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git status), Bash(git log:*), Bash(echo:*), Bash(ls)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git status), Bash(git log:*), Bash(echo:*), Bash(ls)
 argument-hint: (none — closes the session you are in)
 ---
 

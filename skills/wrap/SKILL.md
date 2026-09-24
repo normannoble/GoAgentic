@@ -2,7 +2,7 @@
 name: wrap
 description: End the current agent session and save its state — review the work, update the action tracker, write the session memory, update MEMORY.md and project files, then commit and push. Run it from inside an active agent session; no name needed. Same as /agents:start <name> close. To also clear the conversation afterwards, use /agents:close.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git status), Bash(git log:*), Bash(echo:*), Bash(ls)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git status), Bash(git log:*), Bash(echo:*), Bash(ls)
 argument-hint: (none — wraps the session you are in)
 ---
 

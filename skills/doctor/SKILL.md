@@ -72,6 +72,7 @@ Always name the **single biggest file** and its share. That is the fix.
 - ⚠️ the instruction file's `## Agents` table (`CLAUDE.md`; also `AGENTS.md` or `GEMINI.md` if present) lists an agent that is retired or missing, or omits an active one.
 - ⚠️ `harness:` in `agents/CONVENTIONS.md` frontmatter, or in any agent's `context.md` frontmatter, is set to a CLI that is not on PATH (`claude`, `codex`, `gemini`, `opencode`): ticks and peer panes would fail.
 - ℹ️ `git status --short agents/` shows uncommitted changes (list the count only).
+- ⚠️ two or more active agents' `tools.md` (or `context.md`) name the same code repository path outside the workspace and it is not a `<repo>.wt/<agent>` worktree path: they share one checkout. Fix: each owner moves to its own worktree (master conventions § Code Repositories).
 - ❌ (Herdr only: run `echo "$HERDR_ENV"`; if `1`) `herdr agent list` shows the same agent name live in two or more panes whose `cwd` is under this root — two sessions share one tracker. Name the panes. Ignore other roots.
 
 ## Output

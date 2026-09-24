@@ -122,6 +122,7 @@ Defines what external tools the agent has access to and how to use them. Contain
 - Agent identity (email alias, display name, if applicable)
 - Tool-specific overrides and scoped commands
 - References to shared tool files in `agents/tools/`
+- Code repositories the agent edits, with its worktree path (see § Code Repositories)
 
 Autonomy levels for tooling actions are defined in `autonomy.md`, not here. `tools.md` says *how* to use the tools; `autonomy.md` says *when* the agent needs approval.
 
@@ -418,6 +419,20 @@ Per-tool reference files are loaded on demand, not at startup. Agents read the s
 ### Autonomy defaults, admin checklist, adding a tool
 
 Suggested autonomy levels per tool action, the post-creation admin checklist (aliases, labels, accounts), and the steps for adding a new tool are in `reference/tooling.md`. Read it when creating an agent, adding a tool, or unsure what level a tool action sits at.
+
+## Code Repositories
+
+Agents in one workspace often work on the same code repository. One checkout shared by several live agents breaks: one agent switches branch or stashes, and another's edits move under it. So **each agent does code work in its own git worktree**, never in the shared checkout.
+
+- **Where:** beside the repo, `<repo>.wt/<agent>` with the agent name lowercased — e.g. `~/code/acme` → `~/code/acme.wt/sigrid`. One worktree per agent, kept across sessions. Create it once: `git -C ~/code/acme worktree add ../acme.wt/sigrid -b sigrid/<topic> origin/main` (use the local `main` if there is no remote).
+- **Branches:** `<agent>/<topic>`, one per piece of work, started from the latest `main` inside the agent's worktree (`git fetch && git switch -c sigrid/<topic> origin/main`).
+- **The primary checkout** stays on `main` and nobody edits in it. It is the merge point.
+- **Merging:** the agent merges its own branch when the work is done and the repo's tests pass. Rebase on the latest `main` first, then fast-forward only — `git push origin HEAD:main` from the worktree (if rejected, another agent merged first: fetch, rebase, retest, push again); with no remote, `git -C <primary checkout> merge --ff-only <agent>/<topic>`. Delete the branch after. A repo's own rules win: if it requires pull requests or CI, follow them. The authority to merge sits in `autonomy.md` like any other action.
+- **Record it** in the agent's `tools.md`: the repo, its worktree path, and the repo's test command.
+- **Exceptions:** an agent that is the only one touching a repo may work in the primary checkout. The workspace repo itself (the folder holding `agents/`) is never split into worktrees: peers, shared tools, and Herdr scope all key on its single root. There, the guard is scoped staging at session end (`reference/session-end.md` § Step 7).
+- **Retiring an agent:** `git worktree remove <repo>.wt/<agent>` once its branches are merged or dropped.
+
+Existing agents move to a worktree when convenient; the convention adds no startup cost and needs no migration.
 
 ## INDEX.md Maintenance
 

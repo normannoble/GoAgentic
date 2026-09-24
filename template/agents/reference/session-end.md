@@ -74,7 +74,15 @@ Read `context.md` for the list of project files. Update relevant project logs an
 
 ### Step 7: Commit and push
 
-Stage all session changes, commit with a descriptive message, push to origin.
+Stage **only what this session changed**: your own agent directory plus any project files you updated in Step 6.
+
+```bash
+git add agents/<Name>/ <project files from Step 6>   # multi-domain: agents/<scope>/<Name>/
+git commit -m "<descriptive message>"
+git push || { git pull --rebase --autostash && git push; }
+```
+
+Never `git add -A`, `git add .`, or `git commit -a`. Other agents in this workspace may be mid-session with uncommitted work; a blanket stage commits it under your name, half-finished. If `git status` shows changes outside your paths, leave them for their owner.
 
 ### Step 8: Confirm
 
