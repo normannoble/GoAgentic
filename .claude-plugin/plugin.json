@@ -1,6 +1,6 @@
 {
   "name": "agents",
-  "version": "1.12.1",
+  "version": "1.12.2",
   "description": "Persistent AI collaboration partners in Claude Code \u2014 named agents with calibrated autonomy, memory, action trackers, and playbooks. Skills: /agents:help (guide), /agents:start (run an agent), /agents:wrap (end a session), /agents:close (end a session and clear context), /agents:list, /agents:status (org board), /agents:next (next best action), /agents:doctor (health review), /agents:harness (which CLI each agent runs under), /agents:schedule (unattended tasks), /agents:ask (peer request via Herdr), /agents:new (build one), /agents:init (set up a workspace).",
   "author": {
     "name": "Norman Noble",
