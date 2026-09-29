@@ -19,8 +19,8 @@ The launcher finds `goagentic` on `PATH`, in `$GOBIN`, `~/go/bin`, or
 
 | What | How |
 |------|-----|
-| Quick look over the current pane | `herdr plugin action invoke goagentic.dash.peek`, or bind a key (below). `q` or `esc` closes it. |
-| Dashboard in its own "GoAgentic Dashboard" tab (reused if already open in the Space) | `herdr plugin action invoke goagentic.dash.board` |
+| Dashboard in its own "GoAgentic Dashboard" tab (switched to if already open in the Space) | `herdr plugin action invoke goagentic.dash.board`, or bind a key (below) |
+| Quick look over the current pane, closed with `q` or `esc` | `herdr plugin action invoke goagentic.dash.peek` |
 | Refresh sidebar summaries now | `herdr plugin action invoke goagentic.dash.refresh` |
 
 Inside the dashboard: `↑`/`↓` select an agent, `enter` opens it, `→` (or `space`)
@@ -36,7 +36,7 @@ shows its full detail, `r` refreshes, `a` includes retired agents, `q` quits.
 
 It starts the agent with its `harness:` CLI (`claude` unless `context.md` or the
 workspace conventions say otherwise). From the quick-look overlay the dashboard
-closes after opening, so you land in the agent; the dashboard pane stays open.
+closes after opening, so you land in the agent; the dashboard tab stays open.
 
 The workspace is the one the focused pane sits in (the nearest directory with
 `agents/CONVENTIONS.md`). If the focused pane is outside a workspace, the
@@ -50,7 +50,7 @@ Add to `~/.config/herdr/config.toml`:
 [[keys.command]]
 key = "prefix+a"
 type = "plugin_action"
-command = "goagentic.dash.peek"
+command = "goagentic.dash.board"
 description = "agents dashboard"
 
 # Show each Space's agent summary ("1 live · 3 for you · 2 !") under its name.
