@@ -48,7 +48,7 @@ agents/CONVENTIONS.md, or the one given with --root.`,
 	cmd.Flags().BoolVar(&flags.jsonOutput, "json", false, "Print one snapshot as JSON and exit.")
 	cmd.Flags().BoolVar(&flags.summary, "summary", false, "Print the one-line workspace summary and exit.")
 	cmd.Flags().BoolVar(&flags.sidebar, "herdr-sidebar", false, "Write every Herdr workspace's summary to its $agents sidebar token and exit.")
-	cmd.Flags().StringVar(&flags.view, "view", dash.ViewTiles, "Layout: tiles or table.")
+	cmd.Flags().StringVar(&flags.view, "view", dash.ViewTable, "Layout: table or tiles.")
 	cmd.Flags().BoolVar(&flags.printRoot, "print-root", false, "Print the workspace directory the dashboard would show and exit.")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "Disable color.")
 	cmd.Flags().IntVar(&flags.width, "width", 0, "Output width for --once (default: terminal width, else 120).")
