@@ -76,13 +76,13 @@ jobs:
           GOOS: ${{ matrix.goos }}
         run: |
           version=${GITHUB_REF_NAME#v}
-          asset="agent-framework_${version}_${GOOS}_${GOARCH}"
+          asset="goagentic_${version}_${GOOS}_${GOARCH}"
           mkdir -p dist
           go build \
             -trimpath \
-            -ldflags "-s -w -X github.com/normannoble/agent-framework.Version=$version -X github.com/normannoble/agent-framework.SourceCommit=$GITHUB_SHA" \
+            -ldflags "-s -w -X github.com/normannoble/GoAgentic.Version=$version -X github.com/normannoble/GoAgentic.SourceCommit=$GITHUB_SHA" \
             -o "dist/$asset" \
-            ./cmd/agent-framework
+            ./cmd/goagentic
           (cd dist && sha256sum "$asset" > "$asset.sha256")
 
       - name: Upload release binary
@@ -118,9 +118,11 @@ jobs:
       - name: Smoke-test release bootstrap
         run: |
           version=${GITHUB_REF_NAME#v}
-          binary="$PWD/dist/agent-framework_${version}_linux_amd64"
+          binary="$PWD/dist/goagentic_${version}_linux_amd64"
           chmod 0755 "$binary"
           "$binary" --version | grep -F "$version"
+          "$binary" dash --help >/dev/null
+          "$binary" herdr install --help >/dev/null
           target=$(mktemp -d)
           git -C "$target" init -q
           AGENT_FRAMEWORK_BINARY="$binary" \
@@ -144,5 +146,5 @@ jobs:
             gh release create "$GITHUB_REF_NAME" dist/* \
               --verify-tag \
               --generate-notes \
-              --title "Agent Framework $GITHUB_REF_NAME"
+              --title "GoAgentic $GITHUB_REF_NAME"
           fi

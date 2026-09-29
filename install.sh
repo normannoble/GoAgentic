@@ -4,11 +4,16 @@ set -eu
 # Public bootstrap for:
 #   curl -fsSL https://goagentic.sh/install.sh | sh
 #
+# With --dash it instead installs goagentic into ~/.local/bin (or
+# $GOAGENTIC_INSTALL_DIR) and sets up the agent dashboard in Herdr:
+#   curl -fsSL https://goagentic.sh/install.sh | sh -s -- --dash [--key K | --no-key]
+# Run it again to update.
+#
 # Release binaries are built from the GitHub repository for each supported
 # operating system and architecture. AGENT_FRAMEWORK_BINARY is a local-only
 # escape hatch for testing an unpublished binary.
 
-VERSION=${AGENT_FRAMEWORK_VERSION:-0.1.0}
+VERSION=${AGENT_FRAMEWORK_VERSION:-0.2.0}
 REPOSITORY=${AGENT_FRAMEWORK_REPOSITORY:-normannoble/GoAgentic}
 RELEASE_BASE=${AGENT_FRAMEWORK_RELEASE_BASE:-"https://github.com/${REPOSITORY}/releases/download/v${VERSION}"}
 
@@ -127,5 +132,32 @@ run_cli() {
         "$BINARY" init "$@"
     fi
 }
+
+install_dash() {
+    dest_dir=${GOAGENTIC_INSTALL_DIR:-"$HOME/.local/bin"}
+    mkdir -p "$dest_dir"
+    # Replace rather than write through: the old path may be a symlink.
+    rm -f "$dest_dir/goagentic"
+    cp "$BINARY" "$dest_dir/goagentic"
+    chmod 0755 "$dest_dir/goagentic"
+    echo "Installed goagentic $VERSION to $dest_dir/goagentic"
+    case ":$PATH:" in
+        *":$dest_dir:"*) ;;
+        *) echo "note: $dest_dir is not on your PATH; the Herdr plugin still finds goagentic there." ;;
+    esac
+    echo
+    if ! command -v herdr >/dev/null 2>&1; then
+        echo "Herdr not found, so the dashboard plugin was skipped."
+        echo "Run 'goagentic dash' in an agent workspace, or install Herdr and run this again."
+        return 0
+    fi
+    "$dest_dir/goagentic" herdr install "$@"
+}
+
+if [ "${1:-}" = "--dash" ]; then
+    shift
+    install_dash "$@"
+    exit
+fi
 
 run_cli "$@"

@@ -5,7 +5,12 @@
 set -u
 
 find_goagentic() {
-	for candidate in "${GOAGENTIC_BIN:-}" "$(command -v goagentic 2>/dev/null)" \
+	# `goagentic herdr install` records the binary that installed the plugin.
+	recorded=""
+	if [ -n "${HERDR_PLUGIN_ROOT:-}" ] && [ -f "$HERDR_PLUGIN_ROOT/goagentic-path" ]; then
+		recorded=$(head -n 1 "$HERDR_PLUGIN_ROOT/goagentic-path")
+	fi
+	for candidate in "${GOAGENTIC_BIN:-}" "$recorded" "$(command -v goagentic 2>/dev/null)" \
 		"${GOBIN:-}/goagentic" "${GOPATH:-$HOME/go}/bin/goagentic" "$HOME/.local/bin/goagentic"; do
 		if [ -n "$candidate" ] && [ -x "$candidate" ]; then
 			echo "$candidate"
@@ -23,7 +28,7 @@ dash)
 	if ! bin=$(find_goagentic); then
 		echo "goagentic CLI not found."
 		echo
-		echo "Install it:  go install github.com/normannoble/GoAgentic/cmd/goagentic@latest"
+		echo "Reinstall:  curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash"
 		echo "or set GOAGENTIC_BIN to its path."
 		echo
 		printf "Press Enter to close. "

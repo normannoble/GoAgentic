@@ -79,6 +79,7 @@ func NewRootCommand(in io.Reader, out io.Writer, errOut io.Writer) *cobra.Comman
 	})
 	root.AddCommand(newInitCommand())
 	root.AddCommand(newDashCommand())
+	root.AddCommand(newHerdrCommand())
 	return root
 }
 

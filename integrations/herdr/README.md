@@ -7,13 +7,34 @@ shows comes from the agent files.
 
 ## Install
 
+One line, on each machine that runs Herdr (macOS or Linux, no Go needed):
+
 ```bash
-go install github.com/normannoble/GoAgentic/cmd/goagentic@latest   # or: go install ./cmd/goagentic from a checkout
-herdr plugin link ~/code/GoAgentic/integrations/herdr
+curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash
 ```
 
-The launcher finds `goagentic` on `PATH`, in `$GOBIN`, `~/go/bin`, or
-`~/.local/bin`; set `GOAGENTIC_BIN` to override.
+It downloads the checksum-verified `goagentic` release into `~/.local/bin`
+(override with `GOAGENTIC_INSTALL_DIR`), then runs `goagentic herdr install`,
+which:
+
+- checks Herdr is 0.9.0 or newer;
+- writes this plugin (embedded in the binary, so the two always match) to
+  `~/.local/share/goagentic/herdr-plugin` and registers it, replacing any
+  earlier registration;
+- binds `prefix+a` to open the dashboard, unless the dashboard already has a
+  key; it backs up `config.toml` first, and leaves it untouched if the key is
+  taken or Herdr rejects the change;
+- reloads Herdr's config.
+
+Run the same line again to update. Options after `--dash`: `--key <key>` to
+bind another key, `--no-key` to skip the keybinding.
+
+If `goagentic` is already installed: `goagentic herdr install`. To check or
+remove: `goagentic herdr status`, `goagentic herdr uninstall` (removes the
+plugin, its keybinding and its files).
+
+The dashboard reads the agent workspaces on the machine it runs on, so install
+it wherever your agents' files live.
 
 ## Use
 
@@ -42,18 +63,12 @@ The workspace is the one the focused pane sits in (the nearest directory with
 `agents/CONVENTIONS.md`). If the focused pane is outside a workspace, the
 dashboard uses the directory most of the Herdr Space's other panes share.
 
-## Keybinding and sidebar
+## Sidebar
 
-Add to `~/.config/herdr/config.toml`:
+The installer binds the key for you. To also show each Space's agent summary
+("1 live · 3 for you · 2 !") under its name, add to `~/.config/herdr/config.toml`:
 
 ```toml
-[[keys.command]]
-key = "prefix+a"
-type = "plugin_action"
-command = "goagentic.dash.board"
-description = "agents dashboard"
-
-# Show each Space's agent summary ("1 live · 3 for you · 2 !") under its name.
 [ui.sidebar.spaces]
 rows = [["state_icon", "workspace"], ["$agents"]]
 ```

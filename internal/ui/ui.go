@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -355,6 +356,10 @@ func (u *UI) ShowSuccess(plan *installer.InstallPlan, result installer.ApplyResu
 		fmt.Fprintln(u.out, "  3. Run /agents:start <name> to activate it")
 	} else {
 		fmt.Fprintln(u.out, "  2. Install the optional skills when you are ready")
+	}
+	if _, err := exec.LookPath("herdr"); err == nil {
+		fmt.Fprintln(u.out, "\nHerdr detected. For a live agent dashboard pane, run:")
+		fmt.Fprintln(u.out, "  curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash")
 	}
 }
 
