@@ -224,7 +224,7 @@ func TestSnapshotAndJSON(t *testing.T) {
 	WriteSnapshot(&buf, ws, 120, ViewTable, true, NewStyles(true))
 	out := buf.String()
 	for _, want := range []string{
-		"2 agents", "Waiting on Norman:", "Sigrid #6 Sign the contract",
+		"✋ 2 for you", "● Sigrid", "● Varro", "Waiting on Norman:", "Sigrid #6 Sign the contract",
 		"1 scheduled run(s) not yet read",
 		"» #3 ship the thing → #5 tidy", // the agent's own plan wins
 		"(no open actions)",

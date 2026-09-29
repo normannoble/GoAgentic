@@ -44,21 +44,6 @@ func (s Styles) level(l Level) lipgloss.Style {
 	}
 }
 
-// Header is the first line: workspace, agent count, principal, scan time.
-func Header(ws *Workspace, st Styles) string {
-	n := len(ws.Agents)
-	plural := "s"
-	if n == 1 {
-		plural = ""
-	}
-	parts := []string{st.Title.Render(ws.Name), fmt.Sprintf("%d agent%s", n, plural)}
-	if s := ws.Summary(); s != "" {
-		parts = append(parts, s)
-	}
-	parts = append(parts, st.Dim.Render("updated "+ws.Scanned.Format("15:04:05")))
-	return strings.Join(parts, st.Dim.Render(" · "))
-}
-
 // Summary is the one-line rollup used for the Herdr sidebar token:
 // "1 live · 3 for you · 2 !".
 func (ws *Workspace) Summary() string {
@@ -173,7 +158,7 @@ func columns(ws *Workspace, width int) [6]int {
 		}
 	}
 	w := [6]int{agent, 7, 7, 6, 0, 0}
-	rest := width - (w[0] + w[1] + w[2] + w[3]) - 5*2 - 2
+	rest := width - (w[0] + w[1] + w[2] + w[3]) - 5*2 - 4 // cursor and attention mark
 	if rest < 30 {
 		rest = 30
 	}
@@ -200,7 +185,7 @@ func TableHeader(ws *Workspace, width int, st Styles) string {
 	for i := range cells {
 		cells[i] = fit(cells[i], w[i])
 	}
-	return st.Head.Render(strings.TrimRight("  "+strings.Join(cells, "  "), " "))
+	return st.Head.Render(strings.TrimRight("    "+strings.Join(cells, "  "), " "))
 }
 
 // TableRow renders one agent row; selected rows are highlighted.
@@ -232,7 +217,24 @@ func TableRow(ws *Workspace, a *Agent, width int, selected bool, st Styles) stri
 	if selected {
 		marker = st.Title.Render("› ")
 	}
-	return strings.TrimRight(marker+strings.Join(cells, "  "), " ")
+	return strings.TrimRight(marker+attentionMark(ws, a, st)+" "+strings.Join(cells, "  "), " ")
+}
+
+// attentionMark is a coloured dot before the agent's name, the same colour
+// logic as the tile borders: red for a problem, amber when something waits on
+// the principal, green while it works. Nothing to act on means no mark, so
+// the eye goes to the rows that matter.
+func attentionMark(ws *Workspace, a *Agent, st Styles) string {
+	switch agentTone(ws, a) {
+	case toneProblem:
+		return st.Fail.Render("●")
+	case toneForYou:
+		return st.Warn.Render("●")
+	case toneWorking:
+		return st.OK.Render("●")
+	default:
+		return " "
+	}
 }
 
 // Detail renders the full picture for one agent as lines, listing at most
@@ -389,7 +391,7 @@ func WriteSnapshot(w io.Writer, ws *Workspace, width int, view string, detail bo
 		}
 		return
 	}
-	fmt.Fprintln(w, Header(ws, st))
+	fmt.Fprintln(w, CountHeader(ws, width, st))
 	if waiting := WaitingLines(ws); len(waiting) > 0 {
 		fmt.Fprintln(w, st.Warn.Render("Waiting on "+firstName(ws.Principal)+":"))
 		for _, l := range waiting {

@@ -81,9 +81,9 @@ func tileWidth(width, cols int) int {
 	return w
 }
 
-// TileHeader is the one-line summary of the whole Space: big coloured counts,
-// dimmed when zero.
-func TileHeader(ws *Workspace, width int, st Styles) string {
+// CountHeader is the one-line summary of the whole Space, shared by both
+// views: coloured counts, dimmed when zero.
+func CountHeader(ws *Workspace, width int, st Styles) string {
 	var live, forYou, overdue, blocked, health int
 	for _, a := range ws.Agents {
 		if a.Live != nil && a.Live.Running {
@@ -317,7 +317,7 @@ func TileLegend(st Styles) string {
 
 // writeTiles prints the tile view once, for --once.
 func writeTiles(ws *Workspace, width int, st Styles) []string {
-	out := []string{TileHeader(ws, width, st), ""}
+	out := []string{CountHeader(ws, width, st), ""}
 	grid, _ := TileGrid(ws, width, -1, st)
 	out = append(out, grid...)
 	out = append(out, "", TileLegend(st))

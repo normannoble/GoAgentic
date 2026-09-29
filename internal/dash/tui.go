@@ -249,7 +249,7 @@ func (m *model) render() string {
 	}
 
 	var top []string
-	top = append(top, ansi.Truncate(Header(m.ws, m.st), w, "…"))
+	top = append(top, CountHeader(m.ws, w, m.st))
 
 	if a := m.selected(); m.full && a != nil {
 		body := Detail(m.ws, a, w, 0, m.st)
@@ -263,7 +263,7 @@ func (m *model) render() string {
 	}
 
 	if m.view == ViewTiles {
-		top = []string{TileHeader(m.ws, w, m.st), ""}
+		top = []string{CountHeader(m.ws, w, m.st), ""}
 		if len(m.ws.Agents) == 0 {
 			return compose(top, []string{"No agents in this workspace."}, footer, h)
 		}
