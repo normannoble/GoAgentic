@@ -312,7 +312,7 @@ Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and t
 
 ### Dashboard
 
-`goagentic dash` shows one workspace's agents without starting any of them: each agent's next item (its own `Next session:` line, else its top open P1), last session, when it was last started, a file-health check, whether its Herdr pane is live, and what is waiting on the principal. It reads only files (plus `herdr agent list` and Claude Code transcripts for "last started"), refreshes every 5 seconds, and changes nothing. `--once` prints a snapshot; `--json` and `--summary` are for scripts.
+`goagentic dash` shows one workspace's agents without starting any of them: each agent's next item (its own `Next session:` line, else its top open P1), last session, when it was last started, a file-health check, whether its Herdr pane is live, and what is waiting on the principal. It reads only files (plus `herdr agent list` and Claude Code transcripts for "last started") and refreshes every 5 seconds. Its one action: in Herdr, `enter` on an agent focuses its pane if it is running, or starts it in its old pane or a new tab. `--once` prints a snapshot; `--json` and `--summary` are for scripts.
 
 ```bash
 go install github.com/normannoble/GoAgentic/cmd/goagentic@latest

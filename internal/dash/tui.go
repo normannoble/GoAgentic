@@ -3,6 +3,7 @@ package dash
 import (
 	"context"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -19,7 +20,8 @@ type ScanFunc func(all bool) (*Workspace, error)
 
 // Run starts the interactive dashboard and blocks until the user quits.
 func Run(ctx context.Context, scan ScanFunc, in io.Reader, out io.Writer, noColor, all bool) error {
-	m := &model{scan: scan, st: NewStyles(noColor), all: all, width: 120, height: 40}
+	m := &model{scan: scan, st: NewStyles(noColor), all: all, width: 120, height: 40,
+		quitAfterLaunch: os.Getenv("HERDR_PLUGIN_ENTRYPOINT_ID") == "peek"}
 	m.ws, m.err = scan(all)
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithInput(in), tea.WithOutput(out))
 	_, err := p.Run()
@@ -36,6 +38,11 @@ type scannedMsg struct {
 
 type tickMsg struct{}
 
+type launchedMsg struct {
+	summary string
+	err     error
+}
+
 type model struct {
 	scan   ScanFunc
 	st     Styles
@@ -48,6 +55,11 @@ type model struct {
 	scroll int
 	width  int
 	height int
+	// status is a one-line message shown in the footer, e.g. a launch result.
+	status string
+	// quitAfterLaunch closes the dashboard once an agent opens: set when it
+	// runs as the Herdr quick-look overlay, so you land in the agent.
+	quitAfterLaunch bool
 }
 
 func (m *model) Init() tea.Cmd { return tick() }
@@ -75,7 +87,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.keepSelection(msg.ws)
 		}
+	case launchedMsg:
+		if msg.err != nil {
+			m.status = "✗ " + msg.err.Error()
+			return m, nil
+		}
+		m.status = msg.summary
+		if m.quitAfterLaunch {
+			return m, tea.Quit
+		}
+		return m, m.rescan()
 	case tea.KeyPressMsg:
+		m.status = ""
 		return m, m.key(msg.String())
 	}
 	return m, nil
@@ -133,7 +156,9 @@ func (m *model) key(k string) tea.Cmd {
 		m.cursor, m.scroll = 0, 0
 	case "end", "G":
 		m.cursor = max(0, n-1)
-	case "enter", "space", "l", "right":
+	case "enter", "o":
+		return m.launch()
+	case "space", "l", "right":
 		m.full, m.scroll = !m.full, 0
 	case "h", "left":
 		m.full, m.scroll = false, 0
@@ -144,6 +169,21 @@ func (m *model) key(k string) tea.Cmd {
 		return m.rescan()
 	}
 	return nil
+}
+
+// launch opens the selected agent in Herdr off the UI goroutine; starting an
+// agent waits for its CLI to be ready.
+func (m *model) launch() tea.Cmd {
+	a := m.selected()
+	if a == nil {
+		return nil
+	}
+	m.status = "opening " + a.Name + "…"
+	ws := m.ws
+	return func() tea.Msg {
+		summary, err := Launch(ws, a)
+		return launchedMsg{summary, err}
+	}
 }
 
 func (m *model) View() tea.View {
@@ -165,9 +205,16 @@ func (m *model) render() string {
 		}
 		return msg
 	}
-	footer := m.st.Dim.Render("↑↓ select · enter detail · r refresh · a retired · q quit")
+	footer := m.st.Dim.Render("↑↓ select · enter open · → detail · r refresh · a retired · q quit")
 	if m.full {
-		footer = m.st.Dim.Render("↑↓ scroll · esc back · q quit")
+		footer = m.st.Dim.Render("↑↓ scroll · enter open · esc back · q quit")
+	}
+	if m.status != "" {
+		style := m.st.Accent
+		if strings.HasPrefix(m.status, "✗") {
+			style = m.st.Fail
+		}
+		footer = style.Render(m.status) + "  " + footer
 	}
 	if m.err != nil {
 		footer = m.st.Fail.Render("refresh failed: "+m.err.Error()) + "  " + footer
@@ -209,7 +256,7 @@ func (m *model) render() string {
 		body = append(body, m.st.Dim.Render(strings.Repeat("─", w)))
 		d := Detail(m.ws, a, w, 12, m.st)
 		if len(d) > room {
-			d = append(d[:room-1], m.st.Dim.Render("… enter for more"))
+			d = append(d[:room-1], m.st.Dim.Render("… → for more"))
 		}
 		body = append(body, d...)
 	}

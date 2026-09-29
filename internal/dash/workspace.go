@@ -18,7 +18,9 @@ type Workspace struct {
 	Root      string
 	Name      string
 	Principal string
-	Agents    []*Agent
+	// Harness is the workspace's default CLI (conventions frontmatter).
+	Harness string
+	Agents  []*Agent
 	// Live is false when Herdr could not be queried, so the Live column is
 	// unknown rather than empty.
 	Live    bool
@@ -79,6 +81,7 @@ func Scan(root string, opts Options) (*Workspace, error) {
 		Root:      root,
 		Name:      filepath.Base(root),
 		Principal: conv["principal"],
+		Harness:   conv["harness"],
 		Scanned:   opts.Now,
 	}
 

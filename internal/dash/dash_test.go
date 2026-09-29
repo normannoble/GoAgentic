@@ -325,3 +325,92 @@ func TestSidebarRoots(t *testing.T) {
 		t.Errorf("roots = %v", got)
 	}
 }
+
+func TestLaunchPlan(t *testing.T) {
+	ws := &Workspace{Root: "/ws", Harness: "codex"}
+	join := func(steps []LaunchStep) string {
+		var parts []string
+		for _, s := range steps {
+			parts = append(parts, strings.Join(s.Args, " "))
+		}
+		return strings.Join(parts, " | ")
+	}
+
+	running := &Agent{Name: "Sigrid", Live: &LivePane{PaneID: "w1:p2", Agent: "claude", Running: true}}
+	if sum, steps := LaunchPlan(ws, running, "w1"); join(steps) != "agent focus w1:p2" || sum != "switched to Sigrid" {
+		t.Errorf("running: %s / %s", sum, join(steps))
+	}
+
+	shell := &Agent{Name: "Sigrid", Harness: "claude", Live: &LivePane{PaneID: "w1:p3"}}
+	if _, steps := LaunchPlan(ws, shell, "w1"); join(steps) != "agent start sigrid --kind claude --pane w1:p3 -- /agents:start sigrid | agent focus w1:p3" {
+		t.Errorf("shell: %s", join(steps))
+	}
+
+	// No pane: new tab, and the workspace harness (codex) applies.
+	none := &Agent{Name: "Varro"}
+	_, steps := LaunchPlan(ws, none, "w1")
+	if got := join(steps); got != "tab create --cwd /ws --label Varro --focus --workspace w1 | agent start varro --kind codex --pane  -- $agents-start varro" || !steps[0].NewPane {
+		t.Errorf("no pane: %s", got)
+	}
+}
+
+func TestLaunchRunsHerdr(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "calls.log")
+	fake := filepath.Join(dir, "herdr")
+	write(t, fake, `#!/bin/sh
+echo "$@" >> "`+logPath+`"
+case "$1 $2" in
+"tab create") echo '{"id":"x","result":{"type":"tab_created","root_pane":{"pane_id":"w1:p9"},"tab":{"tab_id":"w1:t4"}}}' ;;
+"agent start") echo '{"id":"x","result":{}}' ;;
+esac
+`)
+	if err := os.Chmod(fake, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HERDR_BIN_PATH", fake)
+	t.Setenv("HERDR_WORKSPACE_ID", "w1")
+
+	sum, err := Launch(&Workspace{Root: "/ws"}, &Agent{Name: "Varro"})
+	if err != nil || sum != "started Varro in a new tab" {
+		t.Fatalf("launch = %q, %v", sum, err)
+	}
+	calls, _ := os.ReadFile(logPath)
+	want := "tab create --cwd /ws --label Varro --focus --workspace w1\nagent start varro --kind claude --pane w1:p9 -- /agents:start varro\n"
+	if string(calls) != want {
+		t.Errorf("calls:\n%s\nwant:\n%s", calls, want)
+	}
+
+	t.Setenv("HERDR_BIN_PATH", "")
+	t.Setenv("HERDR_ENV", "")
+	if _, err := Launch(&Workspace{}, &Agent{Name: "x"}); err != ErrNoHerdr {
+		t.Errorf("outside Herdr = %v", err)
+	}
+}
+
+func TestLaunchFallsBackToTypingTheCommand(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "calls.log")
+	fake := filepath.Join(dir, "herdr")
+	write(t, fake, `#!/bin/sh
+echo "$@" >> "`+logPath+`"
+case "$1 $2" in
+"agent start") echo '{"error":{"code":"name_in_use","message":"name in use"}}'; exit 1 ;;
+esac
+`)
+	if err := os.Chmod(fake, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HERDR_BIN_PATH", fake)
+	a := &Agent{Name: "Seneca", Live: &LivePane{PaneID: "w2:pB"}}
+	if _, err := Launch(&Workspace{Root: "/ws"}, a); err != nil {
+		t.Fatal(err)
+	}
+	calls, _ := os.ReadFile(logPath)
+	want := "agent start seneca --kind claude --pane w2:pB -- /agents:start seneca\n" +
+		"pane run w2:pB claude '/agents:start seneca'\n" +
+		"agent focus w2:pB\n"
+	if string(calls) != want {
+		t.Errorf("calls:\n%s\nwant:\n%s", calls, want)
+	}
+}

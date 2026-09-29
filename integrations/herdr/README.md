@@ -23,8 +23,20 @@ The launcher finds `goagentic` on `PATH`, in `$GOBIN`, `~/go/bin`, or
 | Dashboard pane beside your agents | `herdr plugin action invoke goagentic.dash.board` |
 | Refresh sidebar summaries now | `herdr plugin action invoke goagentic.dash.refresh` |
 
-Inside the dashboard: `↑`/`↓` select an agent, `enter` shows its full detail, `r`
-refreshes, `a` includes retired agents, `q` quits.
+Inside the dashboard: `↑`/`↓` select an agent, `enter` opens it, `→` (or `space`)
+shows its full detail, `r` refreshes, `a` includes retired agents, `q` quits.
+
+`enter` never starts a second copy of an agent:
+
+| Agent's state | `enter` |
+|---|---|
+| running in a pane | focuses that pane |
+| pane still named for it, CLI exited (`shell`) | starts it again in that pane |
+| no pane | opens a new tab in the current Space, in the workspace, and starts it |
+
+It starts the agent with its `harness:` CLI (`claude` unless `context.md` or the
+workspace conventions say otherwise). From the quick-look overlay the dashboard
+closes after opening, so you land in the agent; the dashboard pane stays open.
 
 The workspace is the one the focused pane sits in (the nearest directory with
 `agents/CONVENTIONS.md`). If the focused pane is outside a workspace, the
