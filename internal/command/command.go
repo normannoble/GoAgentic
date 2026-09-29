@@ -78,6 +78,7 @@ func NewRootCommand(in io.Reader, out io.Writer, errOut io.Writer) *cobra.Comman
 		return &exitError{cause: err, code: 2}
 	})
 	root.AddCommand(newInitCommand())
+	root.AddCommand(newDashCommand())
 	return root
 }
 
