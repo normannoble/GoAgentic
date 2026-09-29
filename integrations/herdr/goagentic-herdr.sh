@@ -16,6 +16,7 @@ find_goagentic() {
 }
 
 herdr="${HERDR_BIN_PATH:-herdr}"
+title="GoAgentic Dashboard"
 
 case "${1:-dash}" in
 dash)
@@ -29,6 +30,12 @@ dash)
 		read -r _
 		exit 1
 	fi
+	# The board opens in a tab of its own: name the tab after it. The quick
+	# look is an overlay with no tab of its own, so it leaves tabs alone.
+	if [ "${HERDR_PLUGIN_ENTRYPOINT_ID:-}" = "board" ] && [ -n "${HERDR_PANE_ID:-}" ]; then
+		tab=$("$herdr" pane get "$HERDR_PANE_ID" 2>/dev/null | sed -n 's/.*"tab_id":"\([^"]*\)".*/\1/p')
+		[ -n "$tab" ] && "$herdr" tab rename "$tab" "$title" >/dev/null 2>&1
+	fi
 	if ! "$bin" dash; then
 		echo
 		printf "Press Enter to close. "
@@ -40,6 +47,14 @@ sidebar)
 	exec "$bin" dash --herdr-sidebar
 	;;
 open)
+	# One dashboard tab per Space: focus it if it is already open.
+	if [ "${2:-peek}" = "board" ] && [ -n "${HERDR_WORKSPACE_ID:-}" ] && command -v jq >/dev/null 2>&1; then
+		existing=$("$herdr" pane list 2>/dev/null | jq -r --arg ws "$HERDR_WORKSPACE_ID" --arg t "$title" \
+			'[.result.panes[] | select(.workspace_id == $ws and .label == $t)][0].pane_id // empty')
+		if [ -n "$existing" ]; then
+			exec "$herdr" plugin pane focus "$existing"
+		fi
+	fi
 	exec "$herdr" plugin pane open --plugin "${HERDR_PLUGIN_ID:-goagentic.dash}" --entrypoint "${2:-peek}" --focus
 	;;
 *)

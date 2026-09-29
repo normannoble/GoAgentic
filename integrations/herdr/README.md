@@ -20,7 +20,7 @@ The launcher finds `goagentic` on `PATH`, in `$GOBIN`, `~/go/bin`, or
 | What | How |
 |------|-----|
 | Quick look over the current pane | `herdr plugin action invoke goagentic.dash.peek`, or bind a key (below). `q` or `esc` closes it. |
-| Dashboard pane beside your agents | `herdr plugin action invoke goagentic.dash.board` |
+| Dashboard in its own "GoAgentic Dashboard" tab (reused if already open in the Space) | `herdr plugin action invoke goagentic.dash.board` |
 | Refresh sidebar summaries now | `herdr plugin action invoke goagentic.dash.refresh` |
 
 Inside the dashboard: `↑`/`↓` select an agent, `enter` opens it, `→` (or `space`)

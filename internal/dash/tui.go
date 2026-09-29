@@ -189,10 +189,7 @@ func (m *model) launch() tea.Cmd {
 func (m *model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
-	v.WindowTitle = "Agents"
-	if m.ws != nil {
-		v.WindowTitle = m.ws.Name + " agents"
-	}
+	v.WindowTitle = "GoAgentic Dashboard"
 	return v
 }
 

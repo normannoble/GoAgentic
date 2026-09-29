@@ -1,21 +1,22 @@
 id = "goagentic.dash"
-name = "Agent Dashboard"
+name = "GoAgentic Dashboard"
 version = "0.1.0"
 min_herdr_version = "0.9.0"
 description = "What every agent in this workspace wants to do next, without a Claude session running. Needs the goagentic CLI."
 platforms = ["linux", "macos"]
 
-# The dashboard as a pane beside your agents. It stays open and refreshes.
+# The dashboard in its own tab, named "GoAgentic Dashboard". It stays open
+# and refreshes.
 [[panes]]
 id = "board"
-title = "Agents"
-placement = "split"
+title = "GoAgentic Dashboard"
+placement = "tab"
 command = ["sh", "goagentic-herdr.sh", "dash"]
 
 # The same dashboard as a quick look over the current pane; q or esc closes it.
 [[panes]]
 id = "peek"
-title = "Agents"
+title = "GoAgentic Dashboard"
 placement = "overlay"
 command = ["sh", "goagentic-herdr.sh", "dash"]
 
@@ -27,7 +28,7 @@ command = ["sh", "goagentic-herdr.sh", "open", "peek"]
 
 [[actions]]
 id = "board"
-title = "Agents: open dashboard pane"
+title = "Agents: open dashboard tab"
 contexts = ["workspace"]
 command = ["sh", "goagentic-herdr.sh", "open", "board"]
 
