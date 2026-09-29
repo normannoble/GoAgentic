@@ -37,11 +37,13 @@ An **agent** is a named, persistent collaborator that lives in this repo as mark
 | `/agents:schedule` | Unattended tasks. `add`, `list`, `remove <id>`, `enable`/`disable <id>`, `status`, `install` (the hourly timer). |
 | `/agents:help <command>` | Details for one command. |
 
+**Dashboard (outside Claude):** `goagentic dash` shows every agent's next item, last session, health and what waits on you, with no session running. In Herdr, `prefix+a` opens it. Install or update it with `curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash`.
+
 ## The flow
 
 1. **First time in a repo:** `/agents:init`, then `/agents:new`.
 2. **Each working session:** `/agents:start <name>` (or with a topic). Do the work. `/agents:wrap` when done (or `/agents:close` to also clear the context).
-3. **When you do not know where to go:** `/agents:status` for the whole board, `/agents:next` for the one move.
+3. **When you do not know where to go:** `/agents:status` for the whole board, `/agents:next` for the one move. Or, without starting anything, the dashboard (`prefix+a` in Herdr, or `goagentic dash`).
 4. **Once a week or so:** `/agents:doctor`. Run the commands it gives you.
 5. **When one agent needs another:** `/agents:ask <name> "<request>"` from inside the asking agent's session. Same workspace only. The reply lands in `agents/<Name>/peer/`.
 6. **For work that should happen without you:** `/agents:schedule add`, then `/agents:schedule install` once. A timer checks every hour and runs Claude only when a task is due. Results land in the agent's inbox and surface at its next start.

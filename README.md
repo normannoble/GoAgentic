@@ -62,6 +62,16 @@ Then, in the repo where you want agents:
 claude plugin marketplace update normannoble && claude plugin update agents@normannoble
 ```
 
+### Add the dashboard (optional)
+
+See what every agent wants to do next, and what is waiting on you, without starting any of them:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash
+```
+
+This installs the `goagentic` CLI into `~/.local/bin` (prebuilt for macOS and Linux, no Go needed). If you use [Herdr](https://herdr.dev), it also installs a plugin and binds `prefix+a` to open the dashboard in any Space. Without Herdr, run `goagentic dash` from a workspace. Run the same line again to update. See [Dashboard](#dashboard).
+
 ### Use it from Codex, Gemini CLI, or OpenCode
 
 The agents are markdown; only the command layer is harness-specific. From a clone of this repo:
@@ -308,17 +318,25 @@ Ticks and peer sessions never commit, never send anything, and stay at autonomy 
 
 ### Herdr
 
-Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and tab `<Name> - <Role>`, so the sidebar shows who is live. Scope is the repo root: `/agents:list`, `/agents:status`, and `/agents:doctor` show only live agents under the same root. `/agents:ask <name> "<request>"` opens a fresh pane, runs the target as a peer session, waits for its written reply in `agents/<Name>/peer/`, and closes the pane. Protocol: `template/agents/reference/peer.md`. Outside Herdr everything degrades to a no-op.
+Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and tab `<Name> - <Role>`, so the sidebar shows who is live. Scope is the repo root: `/agents:list`, `/agents:status`, and `/agents:doctor` show only live agents under the same root. `/agents:ask <name> "<request>"` opens a fresh pane, runs the target as a peer session, waits for its written reply in `agents/<Name>/peer/`, and closes the pane. Protocol: `template/agents/reference/peer.md`. Outside Herdr everything degrades to a no-op. For a live view of every agent in a Space, see [Dashboard](#dashboard).
 
 ### Dashboard
 
-`goagentic dash` shows one workspace's agents without starting any of them: each agent's next item (its own `Next session:` line, else its top open P1), last session, when it was last started, a file-health check, whether its Herdr pane is live, and what is waiting on the principal. It reads only files (plus `herdr agent list` and Claude Code transcripts for "last started") and refreshes every 5 seconds. Its one action: in Herdr, `enter` on an agent focuses its pane if it is running, or starts it in its old pane or a new tab. `--once` prints a snapshot; `--json` and `--summary` are for scripts.
+`goagentic dash` shows one workspace's agents without starting any of them. It reads only files, plus `herdr agent list` for live panes and Claude Code transcripts for "last started", refreshes every 5 seconds, and changes nothing.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash
 ```
 
-That installs `goagentic` into `~/.local/bin` and, if you use Herdr, the `goagentic.dash` plugin with `prefix+a` bound to open the dashboard. The plugin also writes each Space's summary to a `$agents` sidebar token. Run it again to update. Without Herdr, `cd ~/agents/<workspace> && goagentic dash` works in any terminal. Details: `integrations/herdr/README.md`.
+The installer puts `goagentic` in `~/.local/bin`. With Herdr, `goagentic herdr install` then adds the `goagentic.dash` plugin and binds `prefix+a`. That key opens the dashboard as a "GoAgentic Dashboard" tab in the current Space, or takes over the current tab if it is an idle shell. Re-run the line to update. `goagentic herdr status` shows what is installed; `goagentic herdr uninstall` removes the plugin, its key and its files, backing up `config.toml` first.
+
+**What each row shows:** the agent's next item (its own `Next session:` line, else its top open P1), its last session, when it last ran, file health, and whether its Herdr pane is live. The top line counts the Space's live agents, items waiting on you, overdue items, blocked P1s and health findings. Items waiting on you are also listed under it.
+
+**Colours:** a dot before an agent's name says whether it needs you. Red means a problem: an overdue item, a blocked P1, or a health failure. Amber means something is waiting on you. Green means the agent is working. No dot means nothing to act on.
+
+**Keys:** `↑`/`↓` select an agent. `enter` opens it: it focuses the agent's pane if it is running, starts it in its old pane, or starts it in a new tab. It never starts a second copy. `→` shows full detail, `v` switches to a tile layout, `r` refreshes, `a` includes retired agents, `q` quits.
+
+**Scripts:** `--once` prints a snapshot, `--json` the data, `--summary` one line. The Herdr plugin also writes each Space's summary to a `$agents` sidebar token. Plugin details: `integrations/herdr/README.md`.
 
 ### Memory
 
