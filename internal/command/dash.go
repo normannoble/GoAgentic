@@ -19,6 +19,7 @@ type dashFlags struct {
 	jsonOutput bool
 	summary    bool
 	sidebar    bool
+	printRoot  bool
 	noColor    bool
 	width      int
 }
@@ -46,6 +47,7 @@ agents/CONVENTIONS.md, or the one given with --root.`,
 	cmd.Flags().BoolVar(&flags.jsonOutput, "json", false, "Print one snapshot as JSON and exit.")
 	cmd.Flags().BoolVar(&flags.summary, "summary", false, "Print the one-line workspace summary and exit.")
 	cmd.Flags().BoolVar(&flags.sidebar, "herdr-sidebar", false, "Write every Herdr workspace's summary to its $agents sidebar token and exit.")
+	cmd.Flags().BoolVar(&flags.printRoot, "print-root", false, "Print the workspace directory the dashboard would show and exit.")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "Disable color.")
 	cmd.Flags().IntVar(&flags.width, "width", 0, "Output width for --once (default: terminal width, else 120).")
 	return cmd
@@ -59,6 +61,10 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 	root, err := dashRoot(flags.root)
 	if err != nil {
 		return err
+	}
+	if flags.printRoot {
+		fmt.Fprintln(cmd.OutOrStdout(), root)
+		return nil
 	}
 	cache := dash.NewTranscriptCache()
 	scan := func(all bool) (*dash.Workspace, error) {
@@ -110,10 +116,10 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 }
 
 // dashRoot picks the workspace: --root when given; else, under a Herdr
-// plugin, the focused pane's directory, then the directory most of the Herdr
-// workspace's panes share (plugin panes start in the plugin's own directory,
-// and the focused pane may be the dashboard itself); else the working
-// directory.
+// plugin, the focused pane's directory; else the working directory; else the
+// directory most of the Herdr Space's panes share (plugin panes start in the
+// plugin's own directory, the focused pane may be the dashboard itself, and a
+// taken-over shell may sit anywhere).
 func dashRoot(flagRoot string) (string, error) {
 	if flagRoot != "" {
 		return dash.FindRoot(flagRoot)
@@ -139,14 +145,19 @@ func dashRoot(flagRoot string) (string, error) {
 			return root, nil
 		}
 	}
+	if wd, err := os.Getwd(); err == nil {
+		if root, err := dash.FindRoot(wd); err == nil {
+			return root, nil
+		}
+	}
+	// A plain Herdr pane has no plugin context but knows its Space.
+	if herdrWorkspace == "" {
+		herdrWorkspace = os.Getenv("HERDR_WORKSPACE_ID")
+	}
 	if herdrWorkspace != "" {
 		if root, err := dash.HerdrWorkspaceRoot(herdrWorkspace); err == nil {
 			return root, nil
 		}
 	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	return dash.FindRoot(wd)
+	return "", dash.ErrNoWorkspace
 }

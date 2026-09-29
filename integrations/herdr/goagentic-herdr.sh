@@ -1,7 +1,7 @@
 #!/bin/sh
 # Launcher for the goagentic.dash Herdr plugin. Finds the goagentic CLI and
-# runs one of: dash (the dashboard), sidebar (write $agents tokens), or
-# open <entrypoint> (open a plugin pane).
+# runs one of: dash (the dashboard), here <tab> (the dashboard in a taken-over
+# shell tab), sidebar (write $agents tokens), or open <entrypoint>.
 set -u
 
 find_goagentic() {
@@ -47,19 +47,51 @@ sidebar)
 	bin=$(find_goagentic) || exit 0
 	exec "$bin" dash --herdr-sidebar
 	;;
+here)
+	# Run in a shell tab taken over by "open board": name the tab while the
+	# dashboard runs, then give the tab its old name back.
+	tab="${2:-}"
+	old=$("$herdr" tab get "$tab" 2>/dev/null | sed -n 's/.*"label":"\([^"]*\)".*/\1/p')
+	"$herdr" tab rename "$tab" "$title" >/dev/null 2>&1
+	bin=$(find_goagentic) && "$bin" dash
+	"$herdr" tab rename "$tab" "$old" >/dev/null 2>&1
+	;;
 open)
-	# One dashboard tab per Space: switch to it if it is already open.
-	if [ "${2:-peek}" = "board" ] && [ -n "${HERDR_WORKSPACE_ID:-}" ] && command -v jq >/dev/null 2>&1; then
-		existing=$("$herdr" tab list 2>/dev/null | jq -r --arg ws "$HERDR_WORKSPACE_ID" --arg t "$title" \
+	entry="${2:-peek}"
+	if [ "$entry" = "board" ] && command -v jq >/dev/null 2>&1; then
+		ws="${HERDR_WORKSPACE_ID:-}"
+		# One dashboard tab per Space: switch to it if it is already open.
+		existing=$("$herdr" tab list 2>/dev/null | jq -r --arg ws "$ws" --arg t "$title" \
 			'[.result.tabs[] | select(.workspace_id == $ws and .label == $t)][0].tab_id // empty')
 		if [ -n "$existing" ]; then
 			exec "$herdr" tab focus "$existing"
 		fi
+		# Take over the current tab when it is nothing but an idle, unnamed
+		# shell: one pane, no process but the shell, not an agent's pane.
+		pane="${HERDR_PANE_ID:-}"
+		if [ -n "$pane" ]; then
+			tab=$("$herdr" pane get "$pane" 2>/dev/null | jq -r '.result.pane.tab_id // empty')
+			panes=$("$herdr" tab get "$tab" 2>/dev/null | jq -r '.result.tab.pane_count // 0')
+			idle=$("$herdr" pane process-info --pane "$pane" 2>/dev/null | jq -r \
+				'.result.process_info | ([.foreground_processes[].pid] == [.shell_pid])')
+			named=$("$herdr" agent list 2>/dev/null | jq -r --arg p "$pane" \
+				'[.result.agents[] | select(.pane_id == $p)] | length')
+			if [ -n "$tab" ] && [ "$panes" = "1" ] && [ "$idle" = "true" ] && [ "$named" = "0" ]; then
+				exec "$herdr" pane run "$pane" "sh '$HERDR_PLUGIN_ROOT/goagentic-herdr.sh' here $tab"
+			fi
+		fi
 	fi
-	exec "$herdr" plugin pane open --plugin "${HERDR_PLUGIN_ID:-goagentic.dash}" --entrypoint "${2:-peek}" --focus
+	# Start the pane in the agent workspace: Herdr names an unnamed Space
+	# after its panes' repo, and the plugin's own directory is not that.
+	cwd=""
+	if bin=$(find_goagentic); then
+		cwd=$("$bin" dash --print-root 2>/dev/null)
+	fi
+	exec "$herdr" plugin pane open --plugin "${HERDR_PLUGIN_ID:-goagentic.dash}" --entrypoint "$entry" \
+		${cwd:+--cwd "$cwd"} --focus
 	;;
 *)
-	echo "usage: goagentic-herdr.sh [dash|sidebar|open <entrypoint>]" >&2
+	echo "usage: goagentic-herdr.sh [dash|here <tab>|sidebar|open <entrypoint>]" >&2
 	exit 2
 	;;
 esac

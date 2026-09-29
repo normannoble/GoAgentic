@@ -74,3 +74,13 @@ func TestDashUsesHerdrPluginContext(t *testing.T) {
 		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
 	}
 }
+
+func TestDashPrintRoot(t *testing.T) {
+	root := dashWorkspace(t)
+	var stdout, stderr bytes.Buffer
+	code := Execute(context.Background(), []string{"dash", "--print-root", "--root", filepath.Join(root, "agents", "Sigrid")},
+		bytes.NewBuffer(nil), &stdout, &stderr)
+	if code != 0 || strings.TrimSpace(stdout.String()) != root {
+		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout.String(), stderr.String())
+	}
+}
