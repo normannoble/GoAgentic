@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -17,6 +18,7 @@ type dashFlags struct {
 	detail     bool
 	jsonOutput bool
 	summary    bool
+	sidebar    bool
 	noColor    bool
 	width      int
 }
@@ -43,21 +45,18 @@ agents/CONVENTIONS.md, or the one given with --root.`,
 	cmd.Flags().BoolVar(&flags.detail, "detail", false, "With --once, add each agent's full detail.")
 	cmd.Flags().BoolVar(&flags.jsonOutput, "json", false, "Print one snapshot as JSON and exit.")
 	cmd.Flags().BoolVar(&flags.summary, "summary", false, "Print the one-line workspace summary and exit.")
+	cmd.Flags().BoolVar(&flags.sidebar, "herdr-sidebar", false, "Write every Herdr workspace's summary to its $agents sidebar token and exit.")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "Disable color.")
 	cmd.Flags().IntVar(&flags.width, "width", 0, "Output width for --once (default: terminal width, else 120).")
 	return cmd
 }
 
 func runDash(cmd *cobra.Command, flags *dashFlags) error {
-	start := flags.root
-	if start == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		start = wd
+	if flags.sidebar {
+		_, err := dash.ReportSidebar()
+		return err
 	}
-	root, err := dash.FindRoot(start)
+	root, err := dashRoot(flags.root)
 	if err != nil {
 		return err
 	}
@@ -108,4 +107,46 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 		return nil
 	}
 	return dash.Run(cmd.Context(), scan, cmd.InOrStdin(), out, noColor, flags.all)
+}
+
+// dashRoot picks the workspace: --root when given; else, under a Herdr
+// plugin, the focused pane's directory, then the directory most of the Herdr
+// workspace's panes share (plugin panes start in the plugin's own directory,
+// and the focused pane may be the dashboard itself); else the working
+// directory.
+func dashRoot(flagRoot string) (string, error) {
+	if flagRoot != "" {
+		return dash.FindRoot(flagRoot)
+	}
+	var candidates []string
+	herdrWorkspace := ""
+	if raw := os.Getenv("HERDR_PLUGIN_CONTEXT_JSON"); raw != "" {
+		var ctx struct {
+			WorkspaceID    string `json:"workspace_id"`
+			FocusedPaneCWD string `json:"focused_pane_cwd"`
+			WorkspaceCWD   string `json:"workspace_cwd"`
+		}
+		if json.Unmarshal([]byte(raw), &ctx) == nil {
+			candidates = append(candidates, ctx.FocusedPaneCWD, ctx.WorkspaceCWD)
+			herdrWorkspace = ctx.WorkspaceID
+		}
+	}
+	for _, dir := range candidates {
+		if dir == "" {
+			continue
+		}
+		if root, err := dash.FindRoot(dir); err == nil {
+			return root, nil
+		}
+	}
+	if herdrWorkspace != "" {
+		if root, err := dash.HerdrWorkspaceRoot(herdrWorkspace); err == nil {
+			return root, nil
+		}
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return dash.FindRoot(wd)
 }

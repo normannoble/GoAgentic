@@ -311,3 +311,17 @@ func TestHumanAge(t *testing.T) {
 		}
 	}
 }
+
+func TestSidebarRoots(t *testing.T) {
+	root := fixture(t)
+	other := t.TempDir()
+	got := sidebarRoots([]herdrPane{
+		{WorkspaceID: "w1", CWD: root},
+		{WorkspaceID: "w1", CWD: filepath.Join(root, "agents", "Sigrid")},
+		{WorkspaceID: "w1", CWD: other},
+		{WorkspaceID: "w2", CWD: other},
+	})
+	if got["w1"] != root || got["w2"] != "" {
+		t.Errorf("roots = %v", got)
+	}
+}

@@ -130,6 +130,7 @@ Autonomy levels for tooling actions are defined in `autonomy.md`, not here. `too
 
 Single standing file — the agent's running to-do list. Always current, updated every session close. Structure:
 - `Last reviewed: YYYY-MM-DD` at the top — **the date only, one line**. Session narrative never goes here; it goes in `memory/sessions/`. `/agents:doctor` flags this line when it exceeds 600 characters.
+- `Next session: …` on the line below it — **one line**: the focus the agent proposes for its next session, as item numbers and a few words (`Next session: #14 Career sweep → #11 close worktrees`). Rewritten at every session close (`reference/session-end.md` § Step 2). It lets {{PRINCIPAL}} see what each agent wants to do next from `goagentic dash` or `/agents:status` without starting the agent. Optional: trackers without it still work, and readers fall back to the top open P1.
 - Open table: #, Action, Ticket, Owner, Priority, Due/Target, Status, Since
 - Completed table: #, Action, Ticket, Owner, Completed date
 

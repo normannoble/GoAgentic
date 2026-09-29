@@ -144,7 +144,9 @@ func parseActions(text string) tracker {
 			}
 			continue
 		case nextSessionRe.MatchString(line) && !strings.HasPrefix(line, "|"):
-			t.nextSession = cleanMarkdown(nextSessionRe.FindStringSubmatch(line)[1])
+			if next := cleanMarkdown(nextSessionRe.FindStringSubmatch(line)[1]); !placeholder(next) {
+				t.nextSession = next
+			}
 			continue
 		case strings.HasPrefix(line, "## "):
 			inOpen = strings.HasPrefix(strings.ToLower(strings.TrimSpace(line[3:])), "open")

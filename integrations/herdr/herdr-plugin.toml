@@ -1,0 +1,55 @@
+id = "goagentic.dash"
+name = "Agent Dashboard"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "What every agent in this workspace wants to do next, without a Claude session running. Needs the goagentic CLI."
+platforms = ["linux", "macos"]
+
+# The dashboard as a pane beside your agents. It stays open and refreshes.
+[[panes]]
+id = "board"
+title = "Agents"
+placement = "split"
+command = ["sh", "goagentic-herdr.sh", "dash"]
+
+# The same dashboard as a quick look over the current pane; q or esc closes it.
+[[panes]]
+id = "peek"
+title = "Agents"
+placement = "overlay"
+command = ["sh", "goagentic-herdr.sh", "dash"]
+
+[[actions]]
+id = "peek"
+title = "Agents: quick look"
+contexts = ["workspace"]
+command = ["sh", "goagentic-herdr.sh", "open", "peek"]
+
+[[actions]]
+id = "board"
+title = "Agents: open dashboard pane"
+contexts = ["workspace"]
+command = ["sh", "goagentic-herdr.sh", "open", "board"]
+
+[[actions]]
+id = "refresh"
+title = "Agents: refresh sidebar summaries"
+contexts = ["workspace"]
+command = ["sh", "goagentic-herdr.sh", "sidebar"]
+
+# Keep each Space's $agents sidebar token current. Tokens are not restored
+# after a server restart, so the startup hook writes them again.
+[[startup]]
+command = ["sh", "goagentic-herdr.sh", "sidebar"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["sh", "goagentic-herdr.sh", "sidebar"]
+
+[[events]]
+on = "pane.exited"
+command = ["sh", "goagentic-herdr.sh", "sidebar"]
+
+[[events]]
+on = "pane.closed"
+command = ["sh", "goagentic-herdr.sh", "sidebar"]

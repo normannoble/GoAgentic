@@ -310,6 +310,17 @@ Ticks and peer sessions never commit, never send anything, and stay at autonomy 
 
 Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and tab `<Name> - <Role>`, so the sidebar shows who is live. Scope is the repo root: `/agents:list`, `/agents:status`, and `/agents:doctor` show only live agents under the same root. `/agents:ask <name> "<request>"` opens a fresh pane, runs the target as a peer session, waits for its written reply in `agents/<Name>/peer/`, and closes the pane. Protocol: `template/agents/reference/peer.md`. Outside Herdr everything degrades to a no-op.
 
+### Dashboard
+
+`goagentic dash` shows one workspace's agents without starting any of them: each agent's next item (its own `Next session:` line, else its top open P1), last session, when it was last started, a file-health check, whether its Herdr pane is live, and what is waiting on the principal. It reads only files (plus `herdr agent list` and Claude Code transcripts for "last started"), refreshes every 5 seconds, and changes nothing. `--once` prints a snapshot; `--json` and `--summary` are for scripts.
+
+```bash
+go install github.com/normannoble/GoAgentic/cmd/goagentic@latest
+cd ~/agents/<workspace> && goagentic dash
+```
+
+In Herdr, the `goagentic.dash` plugin (`integrations/herdr/`) opens it as a pane or a quick-look overlay, and writes each Space's summary to a `$agents` sidebar token. Setup: `integrations/herdr/README.md`.
+
 ### Memory
 
 Two types:

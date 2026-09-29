@@ -65,3 +65,12 @@ func TestDashOutsideWorkspaceFails(t *testing.T) {
 		t.Fatalf("code = %d, stderr = %q", code, stderr.String())
 	}
 }
+
+func TestDashUsesHerdrPluginContext(t *testing.T) {
+	root := dashWorkspace(t)
+	t.Setenv("HERDR_PLUGIN_CONTEXT_JSON", `{"focused_pane_cwd":"/nowhere","workspace_cwd":"`+filepath.Join(root, "agents")+`"}`)
+	var stdout, stderr bytes.Buffer
+	if code := Execute(context.Background(), []string{"dash", "--summary"}, bytes.NewBuffer(nil), &stdout, &stderr); code != 0 {
+		t.Fatalf("exit = %d, stderr = %q", code, stderr.String())
+	}
+}

@@ -20,7 +20,7 @@ Glob for both `agents/*/context.md` (single-domain) and `agents/*/*/context.md` 
 1. Run `date` to get today's date (used for staleness).
 2. Glob as above. For each agent directory, read:
    - `context.md` frontmatter → `title` (the **Role**) and `scope`.
-   - `actions.md` → the `Last reviewed:` date, and the **open P1 rows** (fall back to P2 if no P1). Take the Action cell of the top 1–2 open items as the agent's **current focus / mission**, and note any whose Status reads blocked / gated / awaiting.
+   - `actions.md` → the `Last reviewed:` date, the `Next session:` line if present, and the **open P1 rows** (fall back to P2 if no P1). Use the `Next session:` line as the agent's **current focus / mission** when it exists; otherwise take the Action cell of the top 1–2 open items, and note any whose Status reads blocked / gated / awaiting.
    - `role.md` → the **Primary Objective** line, as a fallback "current focus" only if the agent has no open actions.
 3. Render a **GitHub-flavoured markdown table**, one row per agent:
 

@@ -24,6 +24,7 @@ Update `actions.md`:
 - Add new action items to Open
 - Move completed items to Completed with date
 - Update statuses and flag items at risk or overdue
+- Rewrite the `Next session:` line under `Last reviewed:` with the focus you would propose next time, up to three items (`Next session: #14 Career sweep → #11 close worktrees`). One line; add it if the tracker has none. {{PRINCIPAL}} reads it from the dashboard without starting you, so make it what you would actually declare.
 
 ### Step 3: Review autonomy
 

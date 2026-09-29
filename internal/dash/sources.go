@@ -42,18 +42,11 @@ func (p *LivePane) State() string {
 // HerdrPanes runs `herdr agent list`, using HERDR_BIN_PATH when a Herdr
 // plugin launched us. It returns an error outside Herdr.
 func HerdrPanes() ([]LivePane, error) {
-	bin := os.Getenv("HERDR_BIN_PATH")
-	if bin == "" {
-		bin = "herdr"
-	}
+	bin := herdrBin()
 	if _, err := exec.LookPath(bin); err != nil {
 		return nil, err
 	}
-	out, err := exec.Command(bin, "agent", "list").Output()
-	if err != nil {
-		return nil, err
-	}
-	return parseHerdrAgents(out)
+	return parseHerdrPanes(bin)
 }
 
 func parseHerdrAgents(data []byte) ([]LivePane, error) {
