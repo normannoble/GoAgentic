@@ -297,6 +297,7 @@ func (m *model) render() string {
 	for i, a := range m.ws.Agents {
 		body = append(body, TableRow(m.ws, a, w, i == m.cursor, m.st))
 	}
+	body = append(body, "", "    "+ColourLegend(m.st))
 
 	// The selected agent's detail fills whatever room the table leaves.
 	room := h - len(top) - len(body) - 3

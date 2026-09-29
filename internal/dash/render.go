@@ -33,14 +33,17 @@ func NewStyles(noColor bool) Styles {
 	}
 }
 
+// level colours health. Only a failure is a problem worth red; a warning is
+// routine housekeeping and stays plain, and healthy is dimmed so it recedes.
+// Amber is kept for one meaning only: something waits on the principal.
 func (s Styles) level(l Level) lipgloss.Style {
 	switch l {
 	case Fail:
 		return s.Fail
 	case Warn:
-		return s.Warn
+		return lipgloss.NewStyle()
 	default:
-		return s.OK
+		return s.Dim
 	}
 }
 
@@ -137,9 +140,6 @@ func MakeRow(ws *Workspace, a *Agent) Row {
 		if it, ok := a.NextUp(ws.Principal); ok {
 			r.Next = strings.TrimSpace(fmt.Sprintf("%s #%s %s", it.Priority, strings.TrimPrefix(it.ID, "#"), it.Headline()))
 			r.NextBlocked = it.Blocked()
-			if r.NextBlocked {
-				r.Next += " (blocked)"
-			}
 		} else if len(a.Open) == 0 {
 			r.Next = "(no open actions)"
 		} else {
@@ -194,16 +194,26 @@ func TableRow(ws *Workspace, a *Agent, width int, selected bool, st Styles) stri
 	r := MakeRow(ws, a)
 	live := fit(r.Live, w[1])
 	switch r.Live {
-	case "working", "blocked", "running":
-		live = st.Accent.Render(live)
-	case "idle":
+	case "working", "blocked":
 		live = st.OK.Render(live)
+	case "idle", "running":
+		live = st.Accent.Render(live)
 	default:
 		live = st.Dim.Render(live)
 	}
 	next := fit(r.Next, w[5])
 	if r.NextBlocked {
-		next = st.Warn.Render(next)
+		// The text stays plain; a tag right after it says it is blocked, red
+		// only for a P1 (red means a problem), dim otherwise.
+		tag, style := " ■ blocked", st.Dim
+		if strings.HasPrefix(r.Next, "P1 ") {
+			style = st.Fail
+		}
+		text := ansi.Truncate(r.Next, max(w[5]-len([]rune(tag)), 10), "…")
+		next = text + style.Render(tag)
+		if pad := w[5] - ansi.StringWidth(next); pad > 0 {
+			next += strings.Repeat(" ", pad)
+		}
 	}
 	cells := []string{
 		fit(r.Agent, w[0]),
@@ -235,6 +245,14 @@ func attentionMark(ws *Workspace, a *Agent, st Styles) string {
 	default:
 		return " "
 	}
+}
+
+// ColourLegend explains the attention dots in one line.
+func ColourLegend(st Styles) string {
+	return st.Fail.Render("●") + st.Dim.Render(" problem   ") +
+		st.Warn.Render("●") + st.Dim.Render(" waiting on you   ") +
+		st.OK.Render("●") + st.Dim.Render(" working   ") +
+		st.Dim.Render("no dot: nothing to act on")
 }
 
 // Detail renders the full picture for one agent as lines, listing at most
@@ -304,8 +322,12 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 				if it.Status != "" {
 					line += st.Dim.Render("  " + it.Status)
 				}
-				if it.Blocked() {
-					line = st.Warn.Render(line)
+				if it.Blocked() && !it.Parked() {
+					tag := st.Dim
+					if it.Priority == "P1" {
+						tag = st.Fail
+					}
+					line += tag.Render("  ■ blocked")
 				} else if it.Parked() {
 					line = st.Dim.Render(line)
 				}
@@ -407,6 +429,8 @@ func WriteSnapshot(w io.Writer, ws *Workspace, width int, view string, detail bo
 	for _, a := range ws.Agents {
 		fmt.Fprintln(w, TableRow(ws, a, width, false, st))
 	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "    "+ColourLegend(st))
 	if detail {
 		for _, a := range ws.Agents {
 			fmt.Fprintln(w)

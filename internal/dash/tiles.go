@@ -111,7 +111,7 @@ func CountHeader(ws *Workspace, width int, st Styles) string {
 		count(forYou, st.Warn, "✋", "for you"),
 		count(overdue, st.Fail, "⚑", "overdue"),
 		count(blocked, st.Fail, "■", "P1 blocked"),
-		count(health, st.Warn, "⚠", "health"),
+		count(health, lipgloss.NewStyle(), "⚠", "health"),
 	)
 	left := strings.Join(parts, "   ")
 	right := st.Dim.Render(ws.Scanned.Format("15:04"))
