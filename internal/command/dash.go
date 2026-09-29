@@ -20,6 +20,7 @@ type dashFlags struct {
 	summary    bool
 	sidebar    bool
 	printRoot  bool
+	view       string
 	noColor    bool
 	width      int
 }
@@ -47,6 +48,7 @@ agents/CONVENTIONS.md, or the one given with --root.`,
 	cmd.Flags().BoolVar(&flags.jsonOutput, "json", false, "Print one snapshot as JSON and exit.")
 	cmd.Flags().BoolVar(&flags.summary, "summary", false, "Print the one-line workspace summary and exit.")
 	cmd.Flags().BoolVar(&flags.sidebar, "herdr-sidebar", false, "Write every Herdr workspace's summary to its $agents sidebar token and exit.")
+	cmd.Flags().StringVar(&flags.view, "view", dash.ViewTiles, "Layout: tiles or table.")
 	cmd.Flags().BoolVar(&flags.printRoot, "print-root", false, "Print the workspace directory the dashboard would show and exit.")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "Disable color.")
 	cmd.Flags().IntVar(&flags.width, "width", 0, "Output width for --once (default: terminal width, else 120).")
@@ -57,6 +59,9 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 	if flags.sidebar {
 		_, err := dash.ReportSidebar()
 		return err
+	}
+	if flags.view != dash.ViewTiles && flags.view != dash.ViewTable {
+		return &exitError{cause: fmt.Errorf("--view must be tiles or table"), code: 2}
 	}
 	root, err := dashRoot(flags.root)
 	if err != nil {
@@ -109,10 +114,10 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 				}
 			}
 		}
-		dash.WriteSnapshot(out, ws, width, flags.detail, dash.NewStyles(noColor))
+		dash.WriteSnapshot(out, ws, width, flags.view, flags.detail, dash.NewStyles(noColor))
 		return nil
 	}
-	return dash.Run(cmd.Context(), scan, cmd.InOrStdin(), out, noColor, flags.all)
+	return dash.Run(cmd.Context(), scan, cmd.InOrStdin(), out, noColor, flags.all, flags.view)
 }
 
 // dashRoot picks the workspace: --root when given; else, under a Herdr

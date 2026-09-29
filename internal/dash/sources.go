@@ -95,6 +95,8 @@ type Start struct {
 	// Active is the transcript's last write: roughly when the session last
 	// did anything.
 	Active time.Time
+	// All is every start seen, for the activity sparkline.
+	All []time.Time
 }
 
 // TranscriptCache remembers what each transcript file said so a refresh only
@@ -153,9 +155,11 @@ func (c *TranscriptCache) Starts(projectDir string) map[string]Start {
 		}
 		for _, s := range e.starts {
 			cur := out[s.name]
+			cur.All = append(cur.All, s.at)
 			if s.at.After(cur.Started) {
-				out[s.name] = Start{Started: s.at, Active: e.mtime}
+				cur.Started, cur.Active = s.at, e.mtime
 			}
+			out[s.name] = cur
 		}
 	}
 	return out

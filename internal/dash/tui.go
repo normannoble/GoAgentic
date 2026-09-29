@@ -19,8 +19,8 @@ const refreshEvery = 5 * time.Second
 type ScanFunc func(all bool) (*Workspace, error)
 
 // Run starts the interactive dashboard and blocks until the user quits.
-func Run(ctx context.Context, scan ScanFunc, in io.Reader, out io.Writer, noColor, all bool) error {
-	m := &model{scan: scan, st: NewStyles(noColor), all: all, width: 120, height: 40,
+func Run(ctx context.Context, scan ScanFunc, in io.Reader, out io.Writer, noColor, all bool, view string) error {
+	m := &model{scan: scan, st: NewStyles(noColor), all: all, width: 120, height: 40, view: view,
 		quitAfterLaunch: os.Getenv("HERDR_PLUGIN_ENTRYPOINT_ID") == "peek"}
 	m.ws, m.err = scan(all)
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithInput(in), tea.WithOutput(out))
@@ -55,6 +55,8 @@ type model struct {
 	scroll int
 	width  int
 	height int
+	// view is ViewTiles or ViewTable; v switches.
+	view string
 	// status is a one-line message shown in the footer, e.g. a launch result.
 	status string
 	// quitAfterLaunch closes the dashboard once an agent opens: set when it
@@ -143,14 +145,16 @@ func (m *model) key(k string) tea.Cmd {
 	case "up", "k":
 		if m.full {
 			m.scroll = max(0, m.scroll-1)
-		} else if m.cursor > 0 {
-			m.cursor--
+		} else {
+			m.cursor = max(0, m.cursor-m.step())
 		}
 	case "down", "j":
 		if m.full {
 			m.scroll++
-		} else if m.cursor < n-1 {
-			m.cursor++
+		} else if m.cursor+m.step() < n {
+			m.cursor += m.step()
+		} else if m.view == ViewTiles && m.cursor/m.step() < (n-1)/m.step() {
+			m.cursor = n - 1 // a short last row: land on its last tile
 		}
 	case "home", "g":
 		m.cursor, m.scroll = 0, 0
@@ -158,10 +162,26 @@ func (m *model) key(k string) tea.Cmd {
 		m.cursor = max(0, n-1)
 	case "enter", "o":
 		return m.launch()
-	case "space", "l", "right":
+	case "right", "l":
+		if m.view == ViewTiles && !m.full {
+			m.cursor = min(n-1, m.cursor+1)
+		} else {
+			m.full, m.scroll = true, 0
+		}
+	case "left", "h":
+		if m.view == ViewTiles && !m.full {
+			m.cursor = max(0, m.cursor-1)
+		} else {
+			m.full, m.scroll = false, 0
+		}
+	case "space", "tab":
 		m.full, m.scroll = !m.full, 0
-	case "h", "left":
-		m.full, m.scroll = false, 0
+	case "v":
+		if m.view == ViewTiles {
+			m.view = ViewTable
+		} else {
+			m.view = ViewTiles
+		}
 	case "r":
 		return m.rescan()
 	case "a":
@@ -186,6 +206,14 @@ func (m *model) launch() tea.Cmd {
 	}
 }
 
+// step is how far up/down moves the cursor: a row of tiles, or one line.
+func (m *model) step() int {
+	if m.view == ViewTiles {
+		return TileColumns(max(m.width, 40))
+	}
+	return 1
+}
+
 func (m *model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
@@ -202,7 +230,10 @@ func (m *model) render() string {
 		}
 		return msg
 	}
-	footer := m.st.Dim.Render("↑↓ select · enter open · → detail · r refresh · a retired · q quit")
+	footer := m.st.Dim.Render("↑↓ select · enter open · → detail · v tiles · r refresh · q quit")
+	if m.view == ViewTiles {
+		footer = m.st.Dim.Render("arrows move · enter open · space detail · v list · r refresh · q quit")
+	}
 	if m.full {
 		footer = m.st.Dim.Render("↑↓ scroll · enter open · esc back · q quit")
 	}
@@ -228,6 +259,26 @@ func (m *model) render() string {
 		if len(body) > room {
 			body = body[:room]
 		}
+		return compose(top, body, footer, h)
+	}
+
+	if m.view == ViewTiles {
+		top = []string{TileHeader(m.ws, w, m.st), ""}
+		if len(m.ws.Agents) == 0 {
+			return compose(top, []string{"No agents in this workspace."}, footer, h)
+		}
+		grid, selRow := TileGrid(m.ws, w, m.cursor, m.st)
+		room := h - len(top) - 3
+		// Scroll so the selected row of tiles is on screen.
+		offset := 0
+		if selRow+tileHeight > room {
+			offset = selRow + tileHeight - room
+		}
+		grid = grid[offset:]
+		if len(grid) > room {
+			grid = grid[:room]
+		}
+		body := append(grid, "", TileLegend(m.st))
 		return compose(top, body, footer, h)
 	}
 

@@ -32,7 +32,7 @@ func dashWorkspace(t *testing.T) string {
 func TestDashOnceRendersWorkspace(t *testing.T) {
 	root := dashWorkspace(t)
 	var stdout, stderr bytes.Buffer
-	code := Execute(context.Background(), []string{"dash", "--once", "--root", filepath.Join(root, "agents", "Sigrid")},
+	code := Execute(context.Background(), []string{"dash", "--once", "--view", "table", "--root", filepath.Join(root, "agents", "Sigrid")},
 		bytes.NewBuffer(nil), &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("exit code = %d, stderr = %q", code, stderr.String())

@@ -122,11 +122,13 @@ func Scan(root string, opts Options) (*Workspace, error) {
 			if s, ok := starts[strings.ToLower(a.Name)]; ok {
 				a.LastStarted = s.Started
 				a.LastActive = s.Active
+				a.starts = s.All
 			}
 		}
 	}
 	for _, a := range ws.Agents {
 		a.Health = assessHealth(a, opts.Now)
+		a.Activity = activity(a, opts.Now)
 	}
 	return ws, nil
 }

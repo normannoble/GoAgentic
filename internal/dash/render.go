@@ -367,8 +367,28 @@ func wrap(text string, w, max int) []string {
 	return lines
 }
 
+// View names the dashboard layouts.
+const (
+	ViewTiles = "tiles"
+	ViewTable = "table"
+)
+
 // WriteSnapshot prints the whole dashboard once, for --once.
-func WriteSnapshot(w io.Writer, ws *Workspace, width int, detail bool, st Styles) {
+func WriteSnapshot(w io.Writer, ws *Workspace, width int, view string, detail bool, st Styles) {
+	if view == ViewTiles && len(ws.Agents) > 0 {
+		for _, l := range writeTiles(ws, width, st) {
+			fmt.Fprintln(w, strings.TrimRight(l, " "))
+		}
+		if detail {
+			for _, a := range ws.Agents {
+				fmt.Fprintln(w)
+				for _, l := range Detail(ws, a, width, 0, st) {
+					fmt.Fprintln(w, l)
+				}
+			}
+		}
+		return
+	}
 	fmt.Fprintln(w, Header(ws, st))
 	if waiting := WaitingLines(ws); len(waiting) > 0 {
 		fmt.Fprintln(w, st.Warn.Render("Waiting on "+firstName(ws.Principal)+":"))

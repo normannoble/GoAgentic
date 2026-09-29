@@ -40,6 +40,9 @@ type Agent struct {
 	LastStarted time.Time
 	LastActive  time.Time
 	Live        *LivePane
+	// Activity counts sessions per day, oldest first, ending today.
+	Activity []int
+	starts   []time.Time
 
 	Health Health
 }
@@ -51,6 +54,8 @@ type Item struct {
 	Owner    string `json:"owner,omitempty"`
 	Priority string `json:"priority,omitempty"`
 	Status   string `json:"status,omitempty"`
+	// Due is the date in the Due/Target cell, if it holds one.
+	Due *time.Time `json:"due,omitempty"`
 	// Section is the ### heading the row sits under.
 	Section string `json:"section,omitempty"`
 }
@@ -184,6 +189,15 @@ func parseActions(text string) tracker {
 			Status:   cleanMarkdown(cell(cells, cols, "status")),
 			Section:  section,
 		}
+		due := cell(cells, cols, "due/target")
+		if due == "" {
+			due = cell(cells, cols, "due")
+		}
+		if d := dateRe.FindString(due); d != "" {
+			if t, err := time.Parse("2006-01-02", d); err == nil {
+				item.Due = &t
+			}
+		}
 		if placeholder(item.Action) || strings.HasPrefix(item.Action, "~~") {
 			continue
 		}
@@ -286,6 +300,31 @@ func (i Item) Parked() bool {
 		}
 	}
 	return false
+}
+
+// Overdue reports whether the item has a due date before today and is still
+// live.
+func (i Item) Overdue(now time.Time) bool {
+	if i.Due == nil || i.Parked() {
+		return false
+	}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	return i.Due.Before(today)
+}
+
+// Short is the headline cut to its first clause, for tight spaces.
+func (i Item) Short() string { return shortText(i.Headline()) }
+
+// shortText keeps the text before the first clause break (" — ", ": ",
+// ". ", " (") when that leaves something meaningful.
+func shortText(s string) string {
+	cut := len(s)
+	for _, sep := range []string{" — ", " – ", " - ", ": ", ". ", "; ", " ("} {
+		if i := strings.Index(s, sep); i >= 8 && i < cut {
+			cut = i
+		}
+	}
+	return strings.TrimRight(s[:cut], ".,;:")
 }
 
 // OwnedBy reports whether name appears among the item's owners.
@@ -465,4 +504,65 @@ func listFiles(dir, pattern string) []FileInfo {
 		out = append(out, FileInfo{Name: info.Name(), Size: info.Size()})
 	}
 	return out
+}
+
+// activityDays is how many days the sparkline covers.
+const activityDays = 12
+
+// activity counts, per day for the last activityDays days, how many times the
+// agent was started (from transcripts), or on days with no transcript data,
+// how many session logs it wrote.
+func activity(a *Agent, now time.Time) []int {
+	day := func(t time.Time) int {
+		t = t.In(now.Location())
+		d0 := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		d1 := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, now.Location())
+		return activityDays - 1 - int(d0.Sub(d1).Hours()/24+0.5)
+	}
+	starts := make([]int, activityDays)
+	for _, t := range a.starts {
+		if i := day(t); i >= 0 && i < activityDays {
+			starts[i]++
+		}
+	}
+	out := make([]int, activityDays)
+	for _, s := range a.Sessions {
+		if s.Date.IsZero() {
+			continue
+		}
+		d := time.Date(s.Date.Year(), s.Date.Month(), s.Date.Day(), 12, 0, 0, 0, now.Location())
+		if i := day(d); i >= 0 && i < activityDays {
+			out[i]++
+		}
+	}
+	for i := range out {
+		if starts[i] > 0 {
+			out[i] = starts[i]
+		}
+	}
+	return out
+}
+
+// BlockedCount counts P1 items whose status says they are waiting. Lower
+// priorities are often "awaiting" something as a matter of course; flagging
+// them would make every tile look urgent.
+func (a *Agent) BlockedCount() int {
+	n := 0
+	for _, it := range a.Open {
+		if it.Priority == "P1" && it.Blocked() && !it.Parked() {
+			n++
+		}
+	}
+	return n
+}
+
+// OverdueCount counts live items past their due date.
+func (a *Agent) OverdueCount(now time.Time) int {
+	n := 0
+	for _, it := range a.Open {
+		if it.Overdue(now) {
+			n++
+		}
+	}
+	return n
 }
