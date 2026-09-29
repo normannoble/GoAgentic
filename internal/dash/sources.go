@@ -23,6 +23,9 @@ type LivePane struct {
 	// still named for the agent but its CLI has exited.
 	Agent  string `json:"agent"`
 	Status string `json:"agent_status"`
+	// Label is the pane's Herdr label ("Astrid - Contracts Partner"), from
+	// the pane list; the router sets it even when the agent name is missing.
+	Label string `json:"-"`
 	// Running is true when a coding-agent CLI is live in the pane.
 	Running bool `json:"-"`
 }
@@ -78,8 +81,7 @@ func attachLive(ws *Workspace, panes []LivePane) {
 			if cwd != root && !strings.HasPrefix(cwd, root+string(filepath.Separator)) {
 				continue
 			}
-			base := strings.ToLower(p.Name)
-			if base != name && !regexp.MustCompile(`^`+regexp.QuoteMeta(name)+`-\d+$`).MatchString(base) {
+			if !paneIsAgent(p, name) {
 				continue
 			}
 			if a.Live == nil || (p.Running && !a.Live.Running) {
@@ -87,6 +89,18 @@ func attachLive(ws *Workspace, panes []LivePane) {
 			}
 		}
 	}
+}
+
+// paneIsAgent matches a pane to an agent (lowercased name) by its Herdr agent
+// name ("astrid", or "astrid-2" when the name was taken), or failing that by
+// the "<Name> - <title>" label the router gives the pane.
+func paneIsAgent(p *LivePane, name string) bool {
+	base := strings.ToLower(p.Name)
+	if base == name || regexp.MustCompile(`^`+regexp.QuoteMeta(name)+`-\d+$`).MatchString(base) {
+		return true
+	}
+	label := strings.ToLower(strings.TrimSpace(p.Label))
+	return label == name || strings.HasPrefix(label, name+" - ")
 }
 
 // Start is when an agent was last started, from Claude Code transcripts.

@@ -271,6 +271,16 @@ func TestHerdrLive(t *testing.T) {
 	if ws.Agents[1].Live != nil {
 		t.Error("a pane under another root must not match")
 	}
+	// No agent name, but the router's label says whose pane it is.
+	byLabel := &Workspace{Root: "/ws", Live: true, Agents: []*Agent{{Name: "Astrid"}, {Name: "Aud"}}}
+	attachLive(byLabel, []LivePane{{Agent: "claude", Running: true, Status: "working", CWD: "/ws", PaneID: "w9:p9",
+		Label: "Astrid - Intercompany Contracts Partner"}})
+	if l := byLabel.Agents[0].Live; l == nil || l.PaneID != "w9:p9" {
+		t.Errorf("astrid by label = %+v", l)
+	}
+	if byLabel.Agents[1].Live != nil {
+		t.Error("Aud must not match Astrid's label")
+	}
 	if (&LivePane{}).State() != "shell" {
 		t.Error("exited CLI should read as shell")
 	}

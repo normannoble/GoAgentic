@@ -15,8 +15,10 @@ const SidebarToken = "agents"
 const sidebarSource = "goagentic.dash"
 
 type herdrPane struct {
+	PaneID      string `json:"pane_id"`
 	WorkspaceID string `json:"workspace_id"`
 	CWD         string `json:"cwd"`
+	Label       string `json:"label"`
 }
 
 // ReportSidebar writes each Herdr workspace's agent summary into its
@@ -95,12 +97,27 @@ func sidebarRoots(panes []herdrPane) map[string]string {
 	return out
 }
 
+// parseHerdrPanes lists agent panes with their labels: `herdr agent list`
+// has the agent state, `herdr pane list` the labels.
 func parseHerdrPanes(bin string) ([]LivePane, error) {
 	out, err := exec.Command(bin, "agent", "list").Output()
 	if err != nil {
 		return nil, err
 	}
-	return parseHerdrAgents(out)
+	panes, err := parseHerdrAgents(out)
+	if err != nil {
+		return nil, err
+	}
+	if all, err := listHerdrPanes(bin); err == nil {
+		labels := map[string]string{}
+		for _, p := range all {
+			labels[p.PaneID] = p.Label
+		}
+		for i := range panes {
+			panes[i].Label = labels[panes[i].PaneID]
+		}
+	}
+	return panes, nil
 }
 
 // HerdrWorkspaceRoot is the agent workspace most of a Herdr workspace's panes
