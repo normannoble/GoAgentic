@@ -318,25 +318,34 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 		c := a.Counts()
 		add(st.Head.Render(fmt.Sprintf("Open actions — P1 %d · P2 %d · P3 %d", c["P1"], c["P2"], c["P3"])))
 		// Blocked P1s are listed above, so they are left out here; the
-		// counts in the heading still include them.
+		// counts in the heading still include them. Within each priority,
+		// live items come before parked ones.
 		shown, listed := 0, len(blocked)
+		var ordered []Item
 		for _, p := range []string{"P1", "P2", "P3", ""} {
-			for _, it := range a.Open {
-				if it.Priority != p || (maxItems > 0 && shown >= maxItems) {
-					continue
+			for _, parked := range []bool{false, true} {
+				for _, it := range a.Open {
+					if it.Priority == p && it.Parked() == parked {
+						ordered = append(ordered, it)
+					}
 				}
-				if p == "P1" && it.BlockedOnOthers(ws.Principal) {
-					continue
-				}
-				shown++
-				line := fmt.Sprintf("  %-2s ", it.Priority) + strings.TrimPrefix(itemLine(it, st), "  ")
-				if it.BlockedOnOthers(ws.Principal) {
-					line += st.Dim.Render("  ■ blocked")
-				} else if it.Parked() {
-					line = st.Dim.Render(line)
-				}
-				add(line)
 			}
+		}
+		for _, it := range ordered {
+			if maxItems > 0 && shown >= maxItems {
+				break
+			}
+			if it.Priority == "P1" && it.BlockedOnOthers(ws.Principal) {
+				continue
+			}
+			shown++
+			line := fmt.Sprintf("  %-2s ", it.Priority) + strings.TrimPrefix(itemLine(it, st), "  ")
+			if it.BlockedOnOthers(ws.Principal) {
+				line += st.Dim.Render("  ■ blocked")
+			} else if it.Parked() {
+				line = st.Dim.Render(line)
+			}
+			add(line)
 		}
 		if more := len(a.Open) - listed - shown; more > 0 {
 			add(st.Dim.Render(fmt.Sprintf("  … %d more", more)))

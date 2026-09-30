@@ -173,6 +173,28 @@ func TestDetailBlockedSection(t *testing.T) {
 	}
 }
 
+func TestDetailLiveBeforeParked(t *testing.T) {
+	ws := &Workspace{Principal: "Norman Noble", Scanned: now}
+	a := &Agent{Name: "Cato", Open: []Item{
+		{ID: "66", Action: "Held thing", Owner: "Cato", Priority: "P2", Status: "Explicit hold"},
+		{ID: "70", Action: "Live thing", Owner: "Cato", Priority: "P2", Status: "In progress"},
+		{ID: "19", Action: "Dormant thing", Owner: "Cato", Priority: "P2", Status: "Dormant"},
+		{ID: "15", Action: "Another live thing", Owner: "Cato", Priority: "P2", Status: "Not started"},
+		{ID: "9", Action: "Low live thing", Owner: "Cato", Priority: "P3", Status: "Open"},
+	}}
+	out := ansi.Strip(strings.Join(Detail(ws, a, 120, 0, NewStyles(true)), "\n"))
+	pos := func(id string) int { return strings.Index(out, id) }
+	if !(pos("#70") < pos("#15") && pos("#15") < pos("#66") && pos("#66") < pos("#19") && pos("#19") < pos("#9 ")) {
+		t.Errorf("want live P2s (tracker order), then parked P2s, then P3:\n%s", out)
+	}
+
+	// The item cap keeps live items: with room for two, both live P2s show.
+	capped := ansi.Strip(strings.Join(Detail(ws, a, 120, 2, NewStyles(true)), "\n"))
+	if !strings.Contains(capped, "#70") || !strings.Contains(capped, "#15") || strings.Contains(capped, "#66") {
+		t.Errorf("capped list should show the live items first:\n%s", capped)
+	}
+}
+
 func TestNextUpAndPrincipal(t *testing.T) {
 	a := &Agent{Open: parseActions(sectionedTracker).open}
 	it, ok := a.NextUp("Norman Noble")
