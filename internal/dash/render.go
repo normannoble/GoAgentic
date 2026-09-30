@@ -139,7 +139,7 @@ func MakeRow(ws *Workspace, a *Agent) Row {
 	default:
 		if it, ok := a.NextUp(ws.Principal); ok {
 			r.Next = strings.TrimSpace(fmt.Sprintf("%s #%s %s", it.Priority, strings.TrimPrefix(it.ID, "#"), it.Headline()))
-			r.NextBlocked = it.Blocked()
+			r.NextBlocked = it.BlockedOnOthers(ws.Principal)
 		} else if len(a.Open) == 0 {
 			r.Next = "(no open actions)"
 		} else {
@@ -304,37 +304,41 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 		}
 	}
 
+	blocked := a.BlockedP1s(ws.Principal)
+	if len(blocked) > 0 {
+		add("")
+		add(st.Fail.Render("Blocked items"))
+		for _, it := range blocked {
+			add(itemLine(it, st))
+		}
+	}
+
 	if len(a.Open) > 0 {
 		add("")
 		c := a.Counts()
 		add(st.Head.Render(fmt.Sprintf("Open actions — P1 %d · P2 %d · P3 %d", c["P1"], c["P2"], c["P3"])))
-		shown := 0
+		// Blocked P1s are listed above, so they are left out here; the
+		// counts in the heading still include them.
+		shown, listed := 0, len(blocked)
 		for _, p := range []string{"P1", "P2", "P3", ""} {
 			for _, it := range a.Open {
 				if it.Priority != p || (maxItems > 0 && shown >= maxItems) {
 					continue
 				}
+				if p == "P1" && it.BlockedOnOthers(ws.Principal) {
+					continue
+				}
 				shown++
-				line := fmt.Sprintf("  %-2s #%-3s %s", it.Priority, strings.TrimPrefix(it.ID, "#"), it.Headline())
-				if it.Owner != "" {
-					line += st.Dim.Render("  [" + it.Owner + "]")
-				}
-				if it.Status != "" {
-					line += st.Dim.Render("  " + it.Status)
-				}
-				if it.Blocked() && !it.Parked() {
-					tag := st.Dim
-					if it.Priority == "P1" {
-						tag = st.Fail
-					}
-					line += tag.Render("  ■ blocked")
+				line := fmt.Sprintf("  %-2s ", it.Priority) + strings.TrimPrefix(itemLine(it, st), "  ")
+				if it.BlockedOnOthers(ws.Principal) {
+					line += st.Dim.Render("  ■ blocked")
 				} else if it.Parked() {
 					line = st.Dim.Render(line)
 				}
 				add(line)
 			}
 		}
-		if more := len(a.Open) - shown; more > 0 {
+		if more := len(a.Open) - listed - shown; more > 0 {
 			add(st.Dim.Render(fmt.Sprintf("  … %d more", more)))
 		}
 	}
@@ -439,6 +443,19 @@ func WriteSnapshot(w io.Writer, ws *Workspace, width int, view string, detail bo
 			}
 		}
 	}
+}
+
+// itemLine is one action in the detail view: id, headline, then owner and
+// status dimmed.
+func itemLine(it Item, st Styles) string {
+	line := fmt.Sprintf("  #%-3s %s", strings.TrimPrefix(it.ID, "#"), it.Headline())
+	if it.Owner != "" {
+		line += st.Dim.Render("  [" + it.Owner + "]")
+	}
+	if it.Status != "" {
+		line += st.Dim.Render("  " + it.Status)
+	}
+	return line
 }
 
 func firstName(principal string) string {

@@ -13,7 +13,7 @@ set -eu
 # operating system and architecture. AGENT_FRAMEWORK_BINARY is a local-only
 # escape hatch for testing an unpublished binary.
 
-VERSION=${AGENT_FRAMEWORK_VERSION:-0.2.0}
+VERSION=${AGENT_FRAMEWORK_VERSION:-0.2.1}
 REPOSITORY=${AGENT_FRAMEWORK_REPOSITORY:-normannoble/GoAgentic}
 RELEASE_BASE=${AGENT_FRAMEWORK_RELEASE_BASE:-"https://github.com/${REPOSITORY}/releases/download/v${VERSION}"}
 

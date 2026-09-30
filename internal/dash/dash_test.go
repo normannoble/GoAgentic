@@ -106,6 +106,73 @@ func TestParseActionsFlatTableUsesPriorityColumn(t *testing.T) {
 	}
 }
 
+func TestBlockedDetection(t *testing.T) {
+	for status, want := range map[string]bool{
+		"Blocked on legal":                  true,
+		"Waiting on Vishen/Dario":           true,
+		"Draft delivered — awaiting Norman": true,
+		"Gated by budget":                   true,
+		"Unblocked (MV side); part waits":   false,
+		"In progress — delegated to Pax":    false,
+		"Open":                              false,
+	} {
+		if got := (Item{Status: status}).Blocked(); got != want {
+			t.Errorf("Blocked(%q) = %v, want %v", status, got, want)
+		}
+	}
+	if !(Item{Status: "awaiting Norman"}).WaitsOn("Norman Noble") {
+		t.Error("awaiting Norman should wait on the principal")
+	}
+	for _, status := range []string{"Waiting on Norman's posting", "Blocked on Norman", "Gated by Norman"} {
+		if !(Item{Status: status}).WaitsOn("Norman Noble") {
+			t.Errorf("%q should wait on the principal", status)
+		}
+	}
+	if (Item{Status: "Blocked — Heinrich on holiday (Norman 09-27)"}).WaitsOn("Norman Noble") {
+		t.Error("a name that only says who reported the block is not a wait on the principal")
+	}
+	if (Item{Status: "awaiting Norman"}).BlockedOnOthers("Norman Noble") {
+		t.Error("an item waiting on the principal is not blocked on others")
+	}
+	if !(Item{Status: "waiting on Dario"}).BlockedOnOthers("Norman Noble") {
+		t.Error("waiting on Dario is blocked on others")
+	}
+}
+
+func TestDetailBlockedSection(t *testing.T) {
+	ws := &Workspace{Principal: "Norman Noble", Scanned: now}
+	a := &Agent{Name: "Mimir", Open: []Item{
+		{ID: "67", Action: "Close-out", Owner: "Mimir", Priority: "P1", Status: "In progress"},
+		{ID: "53", Action: "Rescope", Owner: "Mimir", Priority: "P1", Status: "Unblocked (MV side)"},
+		{ID: "64", Action: "Re-cut", Owner: "Mimir/Norman", Priority: "P1", Status: "awaiting Norman"},
+		{ID: "68", Action: "Airtable renewal", Owner: "Norman/Dario", Priority: "P1", Status: "waiting on Dario"},
+		{ID: "44", Action: "InfoSec KRs", Owner: "Mimir", Priority: "P2", Status: "Awaiting draft"},
+	}}
+	out := ansi.Strip(strings.Join(Detail(ws, a, 120, 0, NewStyles(true)), "\n"))
+	blockedAt := strings.Index(out, "Blocked items")
+	openAt := strings.Index(out, "Open actions")
+	waitAt := strings.Index(out, "Waiting on Norman")
+	if blockedAt < 0 || openAt < blockedAt || waitAt > blockedAt {
+		t.Fatalf("want Waiting, then Blocked items, then Open actions:\n%s", out)
+	}
+	blocked, open := out[blockedAt:openAt], out[openAt:]
+	if !strings.Contains(blocked, "#68") || strings.Contains(blocked, "#53") || strings.Contains(blocked, "#64") || strings.Contains(blocked, "#44") {
+		t.Errorf("blocked section wrong:\n%s", blocked)
+	}
+	if strings.Contains(open, "#68") || !strings.Contains(open, "#53") || !strings.Contains(open, "#44") {
+		t.Errorf("open list should drop only the blocked P1:\n%s", open)
+	}
+	if !strings.Contains(out[waitAt:blockedAt], "#64") {
+		t.Errorf("#64 should wait on Norman:\n%s", out)
+	}
+	if !strings.Contains(open, "P1 4 · P2 1") {
+		t.Errorf("counts should include blocked items:\n%s", open)
+	}
+	if a.BlockedCount("Norman Noble") != 1 {
+		t.Errorf("blocked count = %d, want 1", a.BlockedCount("Norman Noble"))
+	}
+}
+
 func TestNextUpAndPrincipal(t *testing.T) {
 	a := &Agent{Open: parseActions(sectionedTracker).open}
 	it, ok := a.NextUp("Norman Noble")
@@ -116,8 +183,8 @@ func TestNextUpAndPrincipal(t *testing.T) {
 	for _, it := range a.ForPrincipal("Norman Noble") {
 		mine = append(mine, it.ID)
 	}
-	if got := strings.Join(mine, ","); got != "6" {
-		t.Errorf("for principal = %s, want only the solely owned row", got)
+	if got := strings.Join(mine, ","); got != "5,6" {
+		t.Errorf("for principal = %s, want the solely owned row and the one blocked on Norman", got)
 	}
 	if !a.Open[1].Blocked() || a.Open[0].Blocked() {
 		t.Error("blocked detection wrong")
@@ -205,7 +272,7 @@ func TestScanFixture(t *testing.T) {
 			t.Errorf("varro findings %q lack %q", joined, want)
 		}
 	}
-	if got := ws.Summary(); got != "2 for you · 1 !" {
+	if got := ws.Summary(); got != "3 for you · 1 !" {
 		t.Errorf("summary = %q", got)
 	}
 
@@ -224,7 +291,7 @@ func TestSnapshotAndJSON(t *testing.T) {
 	WriteSnapshot(&buf, ws, 120, ViewTable, true, NewStyles(true))
 	out := buf.String()
 	for _, want := range []string{
-		"✋ 2 for you", "● Sigrid", "● Varro", "Waiting on Norman:", "Sigrid #6 Sign the contract",
+		"✋ 3 for you", "● Sigrid", "● Varro", "Waiting on Norman:", "Sigrid #5 Tidy memory and links", "Sigrid #6 Sign the contract",
 		"1 scheduled run(s) not yet read",
 		"» #3 ship the thing → #5 tidy", // the agent's own plan wins
 		"(no open actions)",
@@ -435,7 +502,7 @@ func TestTileView(t *testing.T) {
 	var buf bytes.Buffer
 	WriteSnapshot(&buf, ws, 80, ViewTiles, false, NewStyles(true))
 	out := buf.String()
-	for _, want := range []string{"✋ 2 for you", "╭─ Sigrid", "╭─ Varro", "#3 ship the thing", "nothing open", "✋2", "⚠"} {
+	for _, want := range []string{"✋ 3 for you", "╭─ Sigrid", "╭─ Varro", "#3 ship the thing", "nothing open", "✋3", "⚠"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("tiles lack %q:\n%s", want, out)
 		}

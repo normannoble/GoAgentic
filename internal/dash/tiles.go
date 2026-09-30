@@ -48,7 +48,7 @@ func (st Styles) tone(t tone) lipgloss.Style {
 // the principal, which beats the agent's run state.
 func agentTone(ws *Workspace, a *Agent) tone {
 	switch {
-	case a.OverdueCount(ws.Scanned) > 0 || a.BlockedCount() > 0 || a.Health.Level == Fail:
+	case a.OverdueCount(ws.Scanned) > 0 || a.BlockedCount(ws.Principal) > 0 || a.Health.Level == Fail:
 		return toneProblem
 	case len(a.ForPrincipal(ws.Principal)) > 0 || a.InboxUnprocessed > 0:
 		return toneForYou
@@ -91,7 +91,7 @@ func CountHeader(ws *Workspace, width int, st Styles) string {
 		}
 		forYou += len(a.ForPrincipal(ws.Principal)) + a.InboxUnprocessed
 		overdue += a.OverdueCount(ws.Scanned)
-		blocked += a.BlockedCount()
+		blocked += a.BlockedCount(ws.Principal)
 		if a.Health.Level > OK {
 			health++
 		}
@@ -188,7 +188,7 @@ func tileBadges(ws *Workspace, a *Agent, st Styles) string {
 	if n := a.OverdueCount(ws.Scanned); n > 0 {
 		b = append(b, st.Fail.Render(fmt.Sprintf("⚑%d", n)))
 	}
-	if n := a.BlockedCount(); n > 0 {
+	if n := a.BlockedCount(ws.Principal); n > 0 {
 		b = append(b, st.Fail.Render(fmt.Sprintf("■%d", n)))
 	}
 	switch a.Health.Level {

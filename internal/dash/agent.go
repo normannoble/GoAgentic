@@ -280,15 +280,32 @@ func (i Item) Headline() string {
 	return cleanMarkdown(i.Action)
 }
 
+// blockedRe matches whole words only, so "Unblocked" is not a block.
+var blockedRe = regexp.MustCompile(`\b(block\w*|gated|await\w*|waiting|on hold)\b`)
+
 // Blocked reports whether the status says the item is waiting on something.
 func (i Item) Blocked() bool {
-	s := strings.ToLower(i.Status)
-	for _, w := range []string{"block", "gated", "await", "waiting", "on hold"} {
-		if strings.Contains(s, w) {
+	return blockedRe.MatchString(strings.ToLower(i.Status))
+}
+
+// WaitsOn reports whether the item is blocked on the principal
+// ("awaiting Norman"). Such an item is the principal's to move, not a
+// blocker for the agent to chase.
+func (i Item) WaitsOn(principal string) bool {
+	status := strings.ToLower(i.Status)
+	for _, part := range strings.Fields(strings.ToLower(principal)) {
+		re := `\b(block\w*|gated|await\w*|waiting)\s+((on|for|by)\s+)?` + regexp.QuoteMeta(part) + `\b`
+		if regexp.MustCompile(re).MatchString(status) {
 			return true
 		}
 	}
 	return false
+}
+
+// BlockedOnOthers reports whether the item is live and waiting on someone
+// other than the principal.
+func (i Item) BlockedOnOthers(principal string) bool {
+	return i.Blocked() && !i.Parked() && !i.WaitsOn(principal)
 }
 
 // Parked reports whether the item is deliberately not being worked.
@@ -384,7 +401,7 @@ func (a *Agent) NextUp(principal string) (Item, bool) {
 func (a *Agent) ForPrincipal(principal string) []Item {
 	var out []Item
 	for _, it := range a.Open {
-		if it.OnlyOwnedBy(principal) && !it.Parked() {
+		if (it.OnlyOwnedBy(principal) || it.WaitsOn(principal)) && !it.Parked() {
 			out = append(out, it)
 		}
 	}
@@ -543,18 +560,22 @@ func activity(a *Agent, now time.Time) []int {
 	return out
 }
 
-// BlockedCount counts P1 items whose status says they are waiting. Lower
-// priorities are often "awaiting" something as a matter of course; flagging
-// them would make every tile look urgent.
-func (a *Agent) BlockedCount() int {
-	n := 0
+// BlockedP1s lists P1 items waiting on someone other than the principal.
+// Lower priorities are often "awaiting" something as a matter of course;
+// flagging them would make every agent look urgent. Items waiting on the
+// principal show under "Waiting on" instead.
+func (a *Agent) BlockedP1s(principal string) []Item {
+	var out []Item
 	for _, it := range a.Open {
-		if it.Priority == "P1" && it.Blocked() && !it.Parked() {
-			n++
+		if it.Priority == "P1" && it.BlockedOnOthers(principal) {
+			out = append(out, it)
 		}
 	}
-	return n
+	return out
 }
+
+// BlockedCount counts the items BlockedP1s returns.
+func (a *Agent) BlockedCount(principal string) int { return len(a.BlockedP1s(principal)) }
 
 // OverdueCount counts live items past their due date.
 func (a *Agent) OverdueCount(now time.Time) int {
