@@ -18,7 +18,7 @@ This master is shared. A workspace's `agents/CONVENTIONS.md` carries frontmatter
 
 ## Reference files (read on demand, never at startup)
 
-Long procedures live beside this file in `reference/`. In plugin mode that is `${CLAUDE_PLUGIN_ROOT}/template/agents/reference/`; on another harness it is `$AGENT_FRAMEWORK_ROOT/template/agents/reference/` (the framework root named by the wrapper skill or exported by `tick.sh`); in copied mode it is `agents/reference/`.
+Long procedures live beside this file in `reference/`. In plugin mode that is `${CLAUDE_PLUGIN_ROOT}/template/agents/reference/`; on another harness it is `$AGENT_FRAMEWORK_ROOT/template/agents/reference/` (the framework root named by the wrapper skill or exported by `tick.sh`); in copied mode it is `agents/reference/`. (These are the framework's reference files. An agent's own `reference/` folder is different: see § Memory → Agent reference.)
 
 | File | Read when |
 |------|-----------|
@@ -63,11 +63,12 @@ agents/<agent-name>/
 ├── actions.md           # Standing action tracker (always current)
 ├── actions-archive.md   # Completed actions older than 30 days
 ├── context.md           # Startup context paths and project file references
-├── MEMORY.md            # Memory index — standing and session sections
+├── MEMORY.md            # Memory index — standing, reference and session sections
 ├── memory/
 │   ├── standing/        # Durable rules, decisions, baselines
 │   ├── sessions/        # Per-session logs
 │   └── scheduled/       # Scheduler inbox (only agents with scheduled tasks)
+├── reference/           # Situational rules and exact detail, read on demand (created when first needed)
 ├── peer/                # Agent-to-agent exchanges (created on demand by /agents:ask)
 └── playbooks/           # Repeatable procedures with defined execution modes
 ```
@@ -355,8 +356,9 @@ Before wrapping up a conversation, update a lightweight working context note in 
 
 ### MEMORY.md
 
-Index file with two sections:
+Index file with these sections:
 - **Standing** — links to durable entries (rules, decisions, baselines). All read on startup.
+- **Reference** — only if the agent has a `reference/` folder: one line per file with its **Read when** trigger (see § Agent reference). The files themselves are not read on startup.
 - **Sessions** — links to session logs. Most recent 2 read on startup.
 
 One-line summaries only. Keep concise.
@@ -387,11 +389,31 @@ Contain: topics discussed, decisions made, open questions. Do NOT duplicate acti
 
 Present only for agents with scheduled tasks. Holds `inbox.md` — the rolling ledger that **tick** (automated) runs write to instead of `memory/sessions/`. Drained at interactive startup (see § Session Types). Never enters the recent-2 window.
 
+### Agent reference (`reference/`)
+
+For knowledge that is **load-bearing but situational**: rules the agent must follow when the work touches a topic, and the exact detail behind them (IDs, command recipes, incident playbooks, per-surface product facts). It is kept out of `memory/standing/` so startup stays cheap, and it is **never read at startup** — not listed in `context.md` § Startup Context either.
+
+| Goes in | What |
+|---------|------|
+| `memory/standing/` | Rules and decisions the agent applies in **most** sessions |
+| `reference/` | Rules and detail it needs only when the work touches that area |
+| `work/`, `knowledge/` | Data and documents: exports, scans, drafts, reports |
+
+`reference/` is not a place to dump things to get under the standing limit. If nothing in a file is a rule or a fact the agent must get right, it belongs in `work/` or `knowledge/`.
+
+The risk is an agent not noticing that a task needs its reference. Three rules close that gap:
+
+1. **Numbered sections, pointed to from standing memory.** Each reference file uses numbered headings (`## 2. Infrastructure`). The short rule in the baseline ends with a pointer to the detail: `Full detail: reference §2` (with more than one reference file, name it: `ops-reference §2`). Mirroring the baseline's section numbers helps but is not required.
+2. **A Read when line in MEMORY.md.** Under `## Reference`, one line per file: `- [engineering-reference.md](reference/engineering-reference.md) — Read when: touching infra IDs, deploys, migrations, incidents.` MEMORY.md is read at every startup, so the triggers always are.
+3. **Read the section before acting.** When the work matches a trigger or a pointer, read the relevant section first. Reading one section is cheap; getting an exact ID or recipe wrong is not.
+
+There is no size limit on reference files, since they are only read on demand. `/agents:doctor` checks that pointers resolve, that every file has a Read when line, and that none is on the startup path.
+
 ### Entry types, consolidation, workspace memory
 
 Frontmatter `type` values, the full consolidation procedure, and the workspace-memory file format are in `reference/memory.md`.
 
-**Consolidation trigger (check every startup):** more than 5 standing entries, more than 10 session entries, or any single standing file over ~15 KB means consolidate this session or next — read `reference/memory.md` and do it. (The size clause matters because the count triggers miss it: one oversized baseline in an otherwise-small memory never trips the counts, yet it is what `/agents:doctor` fails on.) Everything in `memory/standing/` and all of MEMORY.md is read at every startup; a 40-entry standing memory costs ~60k tokens before the agent says hello. Large data files (exports, scans, dumps) never belong in `memory/standing/` — put them under `work/` or `knowledge/` and leave a one-page summary that points to them.
+**Consolidation trigger (check every startup):** more than 5 standing entries, more than 10 session entries, or any single standing file over ~15 KB means consolidate this session or next — read `reference/memory.md` and do it. (The size clause matters because the count triggers miss it: one oversized baseline in an otherwise-small memory never trips the counts, yet it is what `/agents:doctor` fails on.) Everything in `memory/standing/` and all of MEMORY.md is read at every startup; a 40-entry standing memory costs ~60k tokens before the agent says hello. Large data files (exports, scans, dumps) never belong in `memory/standing/` — put them under `work/` or `knowledge/` and leave a one-page summary that points to them. Load-bearing rules and exact detail that do not fit go to `reference/` (§ Agent reference), not away.
 
 When you discover operational knowledge worth persisting — a tool config, a workaround, a convention the user corrects you on — write it to your own `memory/standing/`.
 

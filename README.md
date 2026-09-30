@@ -344,7 +344,9 @@ Two types:
 - **Standing** (durable) — baselines, decisions, stakeholder feedback. All loaded on startup.
 - **Sessions** (temporal) — per-session logs. Most recent 2 loaded on startup.
 
-Session memories reference `actions.md` instead of duplicating action items. When entries accumulate (>5 standing or >10 sessions), the agent consolidates into a new baseline.
+Session memories reference `actions.md` instead of duplicating action items. When entries accumulate (>5 standing or >10 sessions, or a standing file over ~15 KB), the agent consolidates into a new baseline.
+
+A mature agent can know more than one startup page holds. Rules it needs only in some sessions, and the exact detail behind them (IDs, recipes, incident playbooks), go in the agent's own **`reference/`** folder, read on demand. The baseline keeps the short rule with a pointer (`Full detail: reference §2`), and `MEMORY.md` lists each reference file with a **Read when** trigger, so the agent knows when to open it.
 
 ### Workspace Structure
 

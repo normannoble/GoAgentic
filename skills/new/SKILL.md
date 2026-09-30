@@ -129,6 +129,7 @@ Once name, role, soul, and autonomy are confirmed, create the full agent structu
    │   ├── standing/
    │   └── sessions/
    ├── peer/            # created on demand by /agents:ask; may be omitted here
+   ├── reference/       # created when first needed (master § Agent reference); omit here
    └── playbooks/
    ```
 
@@ -239,7 +240,7 @@ Once name, role, soul, and autonomy are confirmed, create the full agent structu
 10. **Create initial baseline** at `<agent-dir>/memory/standing/<date>-baseline.md`:
    - Capture the current state of the project this agent is scoped to
    - Note what exists, what's in progress, what's pending
-   - Keep it under ~15 KB (one page): state, rules, IDs and pointers — not raw data dumps. Bulk detail belongs under `work/` or `knowledge/`, with the baseline pointing to it. (This is the `/agents:doctor` standing-file cap.)
+   - Keep it under ~15 KB (one page): state, rules, IDs and pointers — not raw data dumps. Bulk data belongs under `work/` or `knowledge/`; situational rules and exact detail can go to `reference/` later (master § Agent reference). The baseline points to both. (This is the `/agents:doctor` standing-file cap.)
 
 Note: Individual per-agent skill files are **not** created. All agents are invoked through the `/agents:start` router (e.g., `/agents:start <name>`).
 

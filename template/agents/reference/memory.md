@@ -13,11 +13,16 @@ Use these in the `type` frontmatter field:
 ### Baseline Consolidation
 
 When the agent has accumulated more than 5 standing entries, more than 10 session entries, or any single standing file over ~15 KB, consolidate:
-- Create a new baseline entry in `memory/standing/` that captures **every** durable rule, decision, path, ID, and threshold from the existing standing entries (losing a rule is the failure mode). **Keep the baseline itself under ~15 KB (≈ one page)** — it holds rules, decisions, IDs and thresholds, not raw data. If source detail (logs, inventories, scan output, long transcripts) would push it over, that detail moves to `work/` or `knowledge/` and the baseline keeps a one-line pointer to it. A standing file over 15 KB is what `/agents:doctor` fails on.
+- Create a new baseline entry in `memory/standing/` that captures **every** durable rule, decision, path, ID, and threshold from the existing standing entries (losing a rule is the failure mode). **Keep the baseline itself under ~15 KB (≈ one page)** — it holds rules, decisions, IDs and thresholds, not raw data. If it would still be over after that, sort what remains:
+  - **Situational rules and exact detail** (IDs, command recipes, incident playbooks, per-surface facts the agent needs only when the work touches them) move to the agent's `reference/` folder (master conventions § Agent reference). Keep the short rule in the baseline and end it with a pointer: `Full detail: reference §N`. Add or update the file's `Read when` line under `## Reference` in MEMORY.md.
+  - **Source detail** (logs, inventories, scan output, long transcripts) moves to `work/` or `knowledge/`, and the baseline keeps a one-line pointer to it.
+
+  A standing file over 15 KB is what `/agents:doctor` fails on.
 - Move the superseded standing entries to `memory/archive/standing/`
 - Keep the 10 most recent session entries; move the rest to `memory/archive/sessions/`
 - Write `memory/archive/INDEX.md` listing every archived file with its one-line summary
-- Rewrite MEMORY.md so Standing lists the baseline (plus anything genuinely new since) and Sessions lists the kept 10, one line each, ≤40 words
+- Rewrite MEMORY.md so Standing lists the baseline (plus anything genuinely new since), Reference lists each `reference/` file with its Read when trigger (if any), and Sessions lists the kept 10, one line each, ≤40 words
+- Check every `reference §N` pointer in the new baseline lands on a heading that exists
 
 Wiki-links resolve by filename, so moving files does not break `[[...]]` references.
 

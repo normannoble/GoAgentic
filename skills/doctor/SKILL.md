@@ -50,15 +50,17 @@ Always name the **single biggest file** and its share. That is the fix.
 ### C. Memory
 
 - ❌ more than 5 files in `memory/standing/` or more than 10 in `memory/sessions/` (consolidation is overdue: master § Baseline Consolidation).
-- ❌ any single file in `memory/standing/` > 15 KB (data dump in standing memory; belongs under `work/` or `knowledge/` with a one-page summary).
+- ❌ any single file in `memory/standing/` > 15 KB (consolidate: situational rules and exact detail move to the agent's `reference/` with pointers; data dumps move to `work/` or `knowledge/` with a one-page summary).
 - ⚠️ `MEMORY.md` > 6 KB.
 - ⚠️ `MEMORY.md` links (`[[name]]` or `memory/...` paths) that match no file in `memory/**` (grep the names, glob for them).
+- If `reference/` exists (agent-level, not the framework's): ⚠️ a file in it has no line under `## Reference` in `MEMORY.md` containing `Read when`; ⚠️ a `reference §N` / `<file> §N` pointer in `memory/standing/` whose file has no heading starting `## N.` (grep the pointers, then the headings). Reference files are not counted in startup cost and have no size limit.
 - ⚠️ newest file in `memory/sessions/` older than the tracker's `Last reviewed` date by more than 7 days (sessions ran without a memory entry).
 
 ### D. Files and wiring
 
 - ❌ any of these missing: `role.md`, `soul.md`, `name.md`, `autonomy.md`, `tools.md`, `actions.md`, `context.md`, `MEMORY.md`, `memory/standing/`, `memory/sessions/`.
 - ❌ a path under `## Startup Context` in `context.md` that does not exist.
+- ⚠️ a path under `## Startup Context` points into the agent's `reference/` (reference files are read on demand, never at startup).
 - ⚠️ `memory/scheduled/inbox.md` exists and has `UNPROCESSED` entries (count them).
 - ⚠️ `peer/` has more than 10 files, or any file with `status: open` older than 7 days (a peer request nobody answered).
 - ⚠️ a playbook (`playbooks/*.md`) has no `## Trigger` section. ℹ️ `playbooks/` is empty (normal for a new agent; mention once, no fix needed).

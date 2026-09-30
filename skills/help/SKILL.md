@@ -62,6 +62,7 @@ agents/<Name>/
   context.md     scope, title, extra files to read at startup
   MEMORY.md      index of its memory
   memory/        standing/ (durable) and sessions/ (one per session)
+  reference/     optional: situational rules and detail, read on demand
   peer/          replies to /agents:ask requests
   playbooks/     repeatable procedures with triggers
 ```

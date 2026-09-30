@@ -63,7 +63,7 @@ find ~/.claude/projects/-$(pwd | tr '/' '-' | cut -c2-) -name "*.jsonl" -mmin -6
 | Gemini CLI | `none` unless shown | `gemini --resume` (pick from `gemini --list-sessions`) |
 | OpenCode | `none` unless shown | `opencode run --continue` |
 
-If the session produced durable rules or decisions, write a separate entry to `memory/standing/` and add it to the Standing section in MEMORY.md.
+If the session produced durable rules or decisions, write a separate entry to `memory/standing/` and add it to the Standing section in MEMORY.md. If it produced exact detail the agent will need only in some sessions (an ID, a recipe, an incident fix), add it to the matching section of a `reference/` file instead, with a pointer from the standing rule (master conventions § Agent reference).
 
 ### Step 5: Update memory index
 
