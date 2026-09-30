@@ -308,6 +308,15 @@ func (i Item) BlockedOnOthers(principal string) bool {
 	return i.Blocked() && !i.Parked() && !i.WaitsOn(principal)
 }
 
+// notStartedRe matches a status that says work has not begun: "Not
+// started", "Open", "To do", or nothing at all.
+var notStartedRe = regexp.MustCompile(`^((not (yet )?started|open|new|to ?do)\b|$)`)
+
+// NotStarted reports whether the item is live but nobody has begun it.
+func (i Item) NotStarted() bool {
+	return notStartedRe.MatchString(strings.ToLower(strings.TrimSpace(i.Status))) && !i.Parked()
+}
+
 // Parked reports whether the item is deliberately not being worked.
 func (i Item) Parked() bool {
 	s := strings.ToLower(i.Status)

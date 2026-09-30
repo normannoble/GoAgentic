@@ -319,13 +319,22 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 		add(st.Head.Render(fmt.Sprintf("Open actions — P1 %d · P2 %d · P3 %d", c["P1"], c["P2"], c["P3"])))
 		// Blocked P1s are listed above, so they are left out here; the
 		// counts in the heading still include them. Within each priority,
-		// live items come before parked ones.
+		// items under way come first, then not started, then parked.
 		shown, listed := 0, len(blocked)
+		stage := func(it Item) int {
+			switch {
+			case it.Parked():
+				return 2
+			case it.NotStarted():
+				return 1
+			}
+			return 0
+		}
 		var ordered []Item
 		for _, p := range []string{"P1", "P2", "P3", ""} {
-			for _, parked := range []bool{false, true} {
+			for st := 0; st <= 2; st++ {
 				for _, it := range a.Open {
-					if it.Priority == p && it.Parked() == parked {
+					if it.Priority == p && stage(it) == st {
 						ordered = append(ordered, it)
 					}
 				}
