@@ -1,6 +1,6 @@
 id = "goagentic.dash"
 name = "GoAgentic Dashboard"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.9.0"
 description = "What every agent in this workspace wants to do next, without a Claude session running. Needs the goagentic CLI."
 platforms = ["linux", "macos"]
@@ -16,6 +16,14 @@ id = "board"
 title = "GoAgentic Dashboard"
 placement = "tab"
 command = ["sh", "-c", "exec sh \"$HERDR_PLUGIN_ROOT/goagentic-herdr.sh\" dash"]
+
+# Every workspace under ~/agents, one row each, in its own tab named
+# "GoAgentic Fleet". Enter opens a workspace's dashboard; esc comes back.
+[[panes]]
+id = "fleet"
+title = "GoAgentic Fleet"
+placement = "tab"
+command = ["sh", "-c", "exec sh \"$HERDR_PLUGIN_ROOT/goagentic-herdr.sh\" fleet"]
 
 # The same dashboard as a quick look over the current pane; q or esc closes it.
 [[panes]]
@@ -35,6 +43,12 @@ id = "board"
 title = "Agents: open dashboard tab"
 contexts = ["workspace"]
 command = ["sh", "goagentic-herdr.sh", "open", "board"]
+
+[[actions]]
+id = "fleet"
+title = "Agents: open fleet view (every workspace)"
+contexts = ["workspace"]
+command = ["sh", "goagentic-herdr.sh", "open", "fleet"]
 
 [[actions]]
 id = "refresh"

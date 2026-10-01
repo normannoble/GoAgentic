@@ -85,8 +85,8 @@ func TestInstallFreshThenAgain(t *testing.T) {
 		!strings.Contains(string(cfg), `command = "goagentic.dash.board"`) {
 		t.Errorf("config:\n%s", cfg)
 	}
-	if boundKey(string(cfg)) != "prefix+a" {
-		t.Errorf("bound key = %q", boundKey(string(cfg)))
+	if boundKey(string(cfg), "board") != "prefix+a" {
+		t.Errorf("bound key = %q", boundKey(string(cfg), "board"))
 	}
 	backups, _ := filepath.Glob(o.ConfigPath + ".bak-*")
 	if len(backups) != 1 {
@@ -192,5 +192,32 @@ func TestHerdrMissing(t *testing.T) {
 	o.Herdr = "definitely-not-herdr-xyz"
 	if err := Install(o); err == nil || !strings.Contains(err.Error(), "not installed") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestInstallAddsFleetKeyToExistingInstall(t *testing.T) {
+	bin, _ := fakeHerdr(t, "0.9.1", "")
+	o := options(t, bin)
+	_ = os.MkdirAll(filepath.Dir(o.ConfigPath), 0o755)
+	old := "[[keys.command]]\nkey = \"prefix+a\"\ntype = \"plugin_action\"\ncommand = \"goagentic.dash.board\"\ndescription = \"agents dashboard\"\n"
+	_ = os.WriteFile(o.ConfigPath, []byte(old), 0o644)
+	o.FleetKey = DefaultFleetKey
+	for i := 0; i < 2; i++ {
+		if err := Install(o); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, _ := os.ReadFile(o.ConfigPath)
+	if !strings.HasPrefix(string(cfg), old) || strings.Count(string(cfg), "[[keys.command]]") != 2 {
+		t.Errorf("want the old binding kept and one fleet binding added:\n%s", cfg)
+	}
+	if boundKey(string(cfg), "fleet") != "prefix+shift+a" || boundKey(string(cfg), "board") != "prefix+a" {
+		t.Errorf("keys: board %q fleet %q", boundKey(string(cfg), "board"), boundKey(string(cfg), "fleet"))
+	}
+	if err := Uninstall(o); err != nil {
+		t.Fatal(err)
+	}
+	if cfg, _ := os.ReadFile(o.ConfigPath); strings.Contains(string(cfg), "goagentic.dash") {
+		t.Errorf("uninstall left a binding:\n%s", cfg)
 	}
 }

@@ -22,7 +22,7 @@ func newHerdrCommand() *cobra.Command {
 		},
 	}
 
-	var key string
+	var key, fleetKey string
 	var noKey bool
 	install := &cobra.Command{
 		Use:   "install",
@@ -38,7 +38,7 @@ plugin; an existing keybinding is left alone.`,
 				return err
 			}
 			if !noKey {
-				opts.Key = key
+				opts.Key, opts.FleetKey = key, fleetKey
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Installing the GoAgentic dashboard into Herdr:")
 			if err := herdrsetup.Install(opts); err != nil {
@@ -47,13 +47,18 @@ plugin; an existing keybinding is left alone.`,
 			if noKey {
 				fmt.Fprintln(cmd.OutOrStdout(), "\nOpen it with: herdr plugin action invoke goagentic.dash.board")
 			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "\nPress %s in any Space to open the dashboard.\n", key)
+				fmt.Fprintf(cmd.OutOrStdout(), "\nPress %s in any Space to open the dashboard", key)
+				if fleetKey != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), ", %s for every workspace", fleetKey)
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), ".")
 			}
 			return nil
 		},
 	}
 	install.Flags().StringVar(&key, "key", herdrsetup.DefaultKey, "Key that opens the dashboard.")
-	install.Flags().BoolVar(&noKey, "no-key", false, "Do not add a keybinding.")
+	install.Flags().StringVar(&fleetKey, "fleet-key", herdrsetup.DefaultFleetKey, "Key that opens the fleet view (every workspace); empty skips it.")
+	install.Flags().BoolVar(&noKey, "no-key", false, "Do not add keybindings.")
 
 	uninstall := &cobra.Command{
 		Use:   "uninstall",

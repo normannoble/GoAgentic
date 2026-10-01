@@ -22,8 +22,11 @@ import (
 // PluginID is the plugin's Herdr id; its actions are PluginID + ".<action>".
 const PluginID = "goagentic.dash"
 
-// DefaultKey opens the dashboard.
-const DefaultKey = "prefix+a"
+// DefaultKey opens the dashboard; DefaultFleetKey opens the fleet view.
+const (
+	DefaultKey      = "prefix+a"
+	DefaultFleetKey = "prefix+shift+a"
+)
 
 // MinHerdr is the oldest Herdr with the plugin features the dashboard uses.
 var MinHerdr = [3]int{0, 9, 0}
@@ -36,6 +39,8 @@ type Options struct {
 	Binary string
 	// Key to bind to the dashboard; empty skips the keybinding.
 	Key string
+	// FleetKey to bind to the fleet view; empty skips it.
+	FleetKey string
 	// Herdr is the herdr executable (default "herdr" on PATH).
 	Herdr string
 	// DataDir holds the plugin files (default ~/.local/share/goagentic/herdr-plugin).
@@ -113,17 +118,22 @@ func Install(o Options) error {
 	}
 	step("plugin %s registered with Herdr", PluginID)
 
-	if o.Key == "" {
-		step("keybinding skipped")
-	} else {
-		added, err := bindKey(o)
+	for _, b := range []struct{ key, action, what string }{
+		{o.Key, "board", "the dashboard"},
+		{o.FleetKey, "fleet", "the fleet view"},
+	} {
+		if b.key == "" {
+			step("%s keybinding skipped", b.what)
+			continue
+		}
+		added, err := bindKey(o, b.key, b.action, "agents "+strings.TrimPrefix(b.what, "the "))
 		if err != nil {
 			return err
 		}
 		if added {
-			step("%s opens the dashboard (%s)", o.Key, o.ConfigPath)
+			step("%s opens %s (%s)", b.key, b.what, o.ConfigPath)
 		} else {
-			step("keybinding already in %s", o.ConfigPath)
+			step("%s keybinding already in %s", b.what, o.ConfigPath)
 		}
 	}
 
@@ -181,10 +191,12 @@ func Status(o Options) (string, error) {
 		fmt.Fprintf(&b, "Plugin:     not installed\n")
 	}
 	cfg, _ := os.ReadFile(o.ConfigPath)
-	if key := boundKey(string(cfg)); key != "" {
-		fmt.Fprintf(&b, "Key:        %s\n", key)
-	} else {
-		fmt.Fprintf(&b, "Key:        none\n")
+	for _, k := range []struct{ label, action string }{{"Key:", "board"}, {"Fleet key:", "fleet"}} {
+		key := boundKey(string(cfg), k.action)
+		if key == "" {
+			key = "none"
+		}
+		fmt.Fprintf(&b, "%-12s%s\n", k.label, key)
 	}
 	return b.String(), nil
 }
@@ -299,10 +311,10 @@ func register(bin, dir string) error {
 
 var keyBlockRe = regexp.MustCompile(`(?m)^\[\[keys\.command\]\]\n(?:[^\[\n].*\n?)*`)
 
-// boundKey returns the key bound to any goagentic.dash action, if one is.
-func boundKey(cfg string) string {
+// boundKey returns the key bound to the plugin's action, if one is.
+func boundKey(cfg, action string) string {
 	for _, block := range keyBlockRe.FindAllString(cfg, -1) {
-		if strings.Contains(block, `"`+PluginID+`.`) {
+		if strings.Contains(block, `"`+PluginID+`.`+action+`"`) {
 			if m := regexp.MustCompile(`(?m)^key\s*=\s*"([^"]+)"`).FindStringSubmatch(block); m != nil {
 				return m[1]
 			}
@@ -316,21 +328,26 @@ func keyTaken(cfg, key string) bool {
 	return regexp.MustCompile(`(?m)^key\s*=\s*"` + regexp.QuoteMeta(key) + `"`).MatchString(cfg)
 }
 
-// bindKey appends a keybinding unless the dashboard already has one. It
-// backs the file up first and restores it if Herdr rejects the result.
-func bindKey(o Options) (bool, error) {
+// bindKey appends a keybinding for the plugin's action unless it already
+// has one. It backs the file up first and restores it if Herdr rejects the
+// result.
+func bindKey(o Options, key, action, description string) (bool, error) {
 	cfg, err := os.ReadFile(o.ConfigPath)
 	if err != nil && !os.IsNotExist(err) {
 		return false, err
 	}
-	if boundKey(string(cfg)) != "" {
+	if boundKey(string(cfg), action) != "" {
 		return false, nil
 	}
-	if keyTaken(string(cfg), o.Key) {
-		return false, fmt.Errorf("%s is already bound in %s; choose another with --key, or --no-key", o.Key, o.ConfigPath)
+	if keyTaken(string(cfg), key) {
+		flag := "--key"
+		if action == "fleet" {
+			flag = "--fleet-key"
+		}
+		return false, fmt.Errorf("%s is already bound in %s; choose another with %s, or --no-key", key, o.ConfigPath, flag)
 	}
-	block := fmt.Sprintf("\n[[keys.command]]\nkey = %q\ntype = \"plugin_action\"\ncommand = %q\ndescription = \"agents dashboard\"\n",
-		o.Key, PluginID+".board")
+	block := fmt.Sprintf("\n[[keys.command]]\nkey = %q\ntype = \"plugin_action\"\ncommand = %q\ndescription = %q\n",
+		key, PluginID+"."+action, description)
 	next := string(cfg)
 	if next != "" && !strings.HasSuffix(next, "\n") {
 		next += "\n"

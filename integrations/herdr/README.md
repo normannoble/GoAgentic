@@ -21,13 +21,15 @@ which:
 - writes this plugin (embedded in the binary, so the two always match) to
   `~/.local/share/goagentic/herdr-plugin` and registers it, replacing any
   earlier registration;
-- binds `prefix+a` to open the dashboard, unless the dashboard already has a
-  key; it backs up `config.toml` first, and leaves it untouched if the key is
-  taken or Herdr rejects the change;
+- binds `prefix+a` to open the dashboard and `prefix+shift+a` to open the
+  fleet view, each unless it already has a key (so re-running adds the fleet
+  key to an older install); it backs up `config.toml` first, and leaves it
+  untouched if a key is taken or Herdr rejects the change;
 - reloads Herdr's config.
 
-Run the same line again to update. Options after `--dash`: `--key <key>` to
-bind another key, `--no-key` to skip the keybinding.
+Run the same line again to update. Options after `--dash`: `--key <key>` and
+`--fleet-key <key>` to bind other keys (`--fleet-key ""` skips the fleet key),
+`--no-key` to skip both.
 
 If `goagentic` is already installed: `goagentic herdr install`. To check or
 remove: `goagentic herdr status`, `goagentic herdr uninstall` (removes the
@@ -41,6 +43,7 @@ it wherever your agents' files live.
 | What | How |
 |------|-----|
 | Dashboard in its own "GoAgentic Dashboard" tab (switched to if already open in the Space) | `herdr plugin action invoke goagentic.dash.board`, or bind a key (below) |
+| Fleet view, every workspace under `~/agents`, in its own "GoAgentic Fleet" tab; `enter` opens a workspace, `esc` comes back | `herdr plugin action invoke goagentic.dash.fleet`, or `prefix+shift+a` |
 | Quick look over the current pane, closed with `q` or `esc` | `herdr plugin action invoke goagentic.dash.peek` |
 | Refresh sidebar summaries now | `herdr plugin action invoke goagentic.dash.refresh` |
 
