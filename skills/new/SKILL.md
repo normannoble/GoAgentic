@@ -12,7 +12,7 @@ Build a new agent following the conventions in `agents/CONVENTIONS.md`.
 ## Startup
 
 1. Read `agents/CONVENTIONS.md` to understand the template. If its frontmatter has `extends: <path>`, read that master first (if the value is `plugin`, resolve it with `ls "${CLAUDE_PLUGIN_ROOT}/template/agents/CONVENTIONS.md"`, or glob `~/.claude/plugins/cache/*/agents/*/template/agents/CONVENTIONS.md` if the variable is empty); the workspace file wins on conflict
-2. Read the reserved names list from CONVENTIONS.md to avoid conflicts
+2. Read the reserved names list from CONVENTIONS.md to avoid conflicts. Note any `## Agent creation` section in the workspace file: its steps run in Phase 6 (master § Inheritance)
 3. **Detect workspace layout:**
    - Glob for `agents/*/context.md` (single-domain: agents are direct children of `agents/`)
    - Glob for `agents/*/*/context.md` (multi-domain: agents are grouped by scope)
@@ -242,12 +242,15 @@ Once name, role, soul, and autonomy are confirmed, create the full agent structu
    - Note what exists, what's in progress, what's pending
    - Keep it under ~15 KB (one page): state, rules, IDs and pointers — not raw data dumps. Bulk data belongs under `work/` or `knowledge/`; situational rules and exact detail can go to `reference/` later (master § Agent reference). The baseline points to both. (This is the `/agents:doctor` standing-file cap.)
 
+11. **Workspace creation steps** — if the workspace `agents/CONVENTIONS.md` has an `## Agent creation` section, carry out each of its steps for this agent now. Where a step conflicts with the steps above, the workspace step wins. A step that needs the principal outside the session (an account, a key, an upload) goes on the admin checklist reminder rather than being skipped silently.
+
 Note: Individual per-agent skill files are **not** created. All agents are invoked through the `/agents:start` router (e.g., `/agents:start <name>`).
 
 ### Phase 7: Verify
 
 After creation:
 - List the created files
+- If the workspace has an `## Agent creation` section, confirm each of its steps is done, or name the ones handed to the principal
 - Show the invocation command (`/agents:start <name>`)
 - Remind the principal to test with `/agents:start <name>` in a new conversation
 
