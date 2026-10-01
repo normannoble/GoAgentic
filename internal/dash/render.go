@@ -13,7 +13,7 @@ import (
 
 // Styles colors the dashboard. The zero value (NoColor) prints plain text.
 type Styles struct {
-	Title, Dim, Head, OK, Warn, Fail, Accent lipgloss.Style
+	Title, Dim, Head, OK, Plan, Warn, Fail, Accent lipgloss.Style
 }
 
 // NewStyles returns the dashboard palette, or plain styles when noColor.
@@ -27,6 +27,7 @@ func NewStyles(noColor bool) Styles {
 		Dim:    c("#777777"),
 		Head:   lipgloss.NewStyle().Bold(true),
 		OK:     c("#65d1a7"),
+		Plan:   c("#65d1a7").Bold(true),
 		Warn:   c("#e5c07b"),
 		Fail:   c("#ff5f5f").Bold(true),
 		Accent: c("#61afef"),
@@ -289,15 +290,17 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 
 	if a.NextSession != "" {
 		add("")
-		add(st.Head.Render("Next session (agent's own plan)"))
-		add("  " + a.NextSession)
+		add(st.Plan.Render("Next session (agent's own plan)"))
+		for _, step := range a.PlanSteps() {
+			add(fmt.Sprintf("  %-2s %s", step.Priority, step.Text))
+		}
 	}
 
 	if mine := a.ForPrincipal(ws.Principal); len(mine) > 0 || a.InboxUnprocessed > 0 {
 		add("")
 		add(st.Warn.Render("Waiting on " + firstName(ws.Principal)))
 		for _, it := range mine {
-			add(fmt.Sprintf("  #%-3s %s", strings.TrimPrefix(it.ID, "#"), it.Headline()))
+			add(fmt.Sprintf("  %-2s #%-3s %s", it.Priority, strings.TrimPrefix(it.ID, "#"), it.Headline()))
 		}
 		if a.InboxUnprocessed > 0 {
 			add(fmt.Sprintf("  %d scheduled run(s) not yet read — start the agent to drain its inbox", a.InboxUnprocessed))

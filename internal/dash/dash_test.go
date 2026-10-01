@@ -204,6 +204,45 @@ func TestDetailLiveBeforeParked(t *testing.T) {
 	}
 }
 
+func TestPlanSteps(t *testing.T) {
+	a := &Agent{
+		NextSession: "#20 apply legal answers → #18 framework sync -> #99 gone → chase Dario",
+		Open: []Item{
+			{ID: "20", Priority: "P2", Status: "Not started"},
+			{ID: "18", Priority: "P3", Status: "Open"},
+		},
+	}
+	got := a.PlanSteps()
+	want := []PlanStep{
+		{"P2", "#20  apply legal answers"},
+		{"P3", "#18  framework sync"},
+		{"", "#99 gone"}, // not open: kept as written, no priority
+		{"", "chase Dario"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("steps = %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("step %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	ws := &Workspace{Principal: "Norman Noble", Scanned: now}
+	a.Name = "Astrid"
+	a.Open = append(a.Open, Item{ID: "11", Action: "Dario + Shaf", Owner: "Norman", Priority: "P1", Status: "In Progress"})
+	out := ansi.Strip(strings.Join(Detail(ws, a, 120, 0, NewStyles(true)), "\n"))
+	plain := strings.Join(Detail(ws, a, 120, 0, NewStyles(true)), "\n")
+	if strings.Contains(plain, "\x1b[") {
+		t.Errorf("no-color detail contains escape codes:\n%q", plain)
+	}
+	for _, line := range []string{"  P2 #20  apply legal answers", "  P3 #18  framework sync", "  P1 #11  Dario + Shaf"} {
+		if !strings.Contains(out, line+"\n") {
+			t.Errorf("detail lacks line %q:\n%s", line, out)
+		}
+	}
+}
+
 func TestNextUpAndPrincipal(t *testing.T) {
 	a := &Agent{Open: parseActions(sectionedTracker).open}
 	it, ok := a.NextUp("Norman Noble")

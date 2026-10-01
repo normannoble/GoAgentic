@@ -2,6 +2,7 @@ package dash
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -413,6 +414,42 @@ func (a *Agent) ForPrincipal(principal string) []Item {
 		if (it.OnlyOwnedBy(principal) || it.WaitsOn(principal)) && !it.Parked() {
 			out = append(out, it)
 		}
+	}
+	return out
+}
+
+// PlanStep is one step of the agent's "Next session:" line, with the
+// priority of the item it names when that item is open.
+type PlanStep struct {
+	Priority, Text string
+}
+
+var (
+	planSplitRe = regexp.MustCompile(`\s*(→|->)\s*`)
+	planIDRe    = regexp.MustCompile(`^#(\w+)\s*`)
+)
+
+// PlanSteps splits the "Next session:" line on its arrows. A step that
+// starts with an open item's number carries that item's priority; the
+// agent's own wording is kept.
+func (a *Agent) PlanSteps() []PlanStep {
+	var out []PlanStep
+	for _, part := range planSplitRe.Split(a.NextSession, -1) {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		step := PlanStep{Text: part}
+		if m := planIDRe.FindStringSubmatch(part); m != nil {
+			for _, it := range a.Open {
+				if strings.TrimPrefix(it.ID, "#") == m[1] {
+					step.Priority = it.Priority
+					step.Text = fmt.Sprintf("#%-3s %s", m[1], strings.TrimPrefix(part, m[0]))
+					break
+				}
+			}
+		}
+		out = append(out, step)
 	}
 	return out
 }
