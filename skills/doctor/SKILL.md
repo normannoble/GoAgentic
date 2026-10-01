@@ -43,7 +43,7 @@ Always name the **single biggest file** and its share. That is the fix.
 - ⚠️ no `Last reviewed:` line; ⚠️ its date is > 14 days old; ❌ > 45 days old.
 - ⚠️ Open section has no `### P1` / `### P2` / `### P3` sub-sections.
 - ⚠️ more than 8 open P1 rows (count table rows under `### P1` before the next heading).
-- ⚠️ Open contains struck-through rows (`~~`).
+- ⚠️ Open contains struck-through rows: the Action cell starts with `~~` (a done item left in Open). Strikethrough inside a live item's text (`~~algorithm HTML~~ (received) + SQL source`) is fine.
 - ⚠️ Completed table has rows dated more than 30 days ago and `actions-archive.md` exists (they should be archived); ⚠️ `actions-archive.md` missing.
 - ℹ️ Open rows whose Status does not start with `Not started`, `In progress`, `Waiting on` or `Parked` (master § actions.md): give the count and share, e.g. `12 of 30 statuses free-text`. No fix needed beyond the next full tracker pass.
 - ⚠️ any row whose Status cell starts `Waiting on` (or says blocked / gated / awaiting) for more than 30 days (compare the row's date if it has one; otherwise skip).
@@ -60,9 +60,9 @@ Always name the **single biggest file** and its share. That is the fix.
 ### D. Files and wiring
 
 - ❌ any of these missing: `role.md`, `soul.md`, `name.md`, `autonomy.md`, `tools.md`, `actions.md`, `context.md`, `MEMORY.md`, `memory/standing/`, `memory/sessions/`.
-- ❌ a path under `## Startup Context` in `context.md` that does not exist.
+- ❌ a path under `## Startup Context` in `context.md` that does not exist. Skip placeholder bullets such as `(none yet …)`. ⚠️ a bullet there that is not a workspace path at all (a URL, a wiki page name, prose): the agent cannot load it at startup; move it to the body of `context.md`.
 - ⚠️ a path under `## Startup Context` points into the agent's `reference/` (reference files are read on demand, never at startup).
-- ⚠️ `memory/scheduled/inbox.md` exists and has `UNPROCESSED` entries (count them).
+- ⚠️ `memory/scheduled/inbox.md` exists and has `UNPROCESSED` entries (count them). Count only entry headings (`### <timestamp> — <task> — UNPROCESSED` with a real date); the file's format header mentions the word too, and that is not an entry.
 - ⚠️ `peer/` has more than 10 files, or any file with `status: open` older than 7 days (a peer request nobody answered).
 - ⚠️ a playbook (`playbooks/*.md`) has no `## Trigger` section. ℹ️ `playbooks/` is empty (normal for a new agent; mention once, no fix needed).
 - ℹ️ active agent whose `Last reviewed` is > 60 days old: suggest retiring it (`status: retired` in `context.md`).
@@ -70,7 +70,7 @@ Always name the **single biggest file** and its share. That is the fix.
 ### E. Workspace level (once per report)
 
 - ❌ `agents/CONVENTIONS.md` missing or without `extends:` in frontmatter.
-- ⚠️ `reserved:` list in that frontmatter does not match the agent directories (names missing from the list, or listed names with no directory).
+- ⚠️ `reserved:` list in that frontmatter does not match the agent directories (names missing from the list, or listed names with no directory). Compare case-insensitively: `Ned` in the list matches `agents/ned/`.
 - ⚠️ `agents/tools/INDEX.md` missing.
 - ⚠️ the instruction file's `## Agents` table (`CLAUDE.md`; also `AGENTS.md` or `GEMINI.md` if present) lists an agent that is retired or missing, or omits an active one.
 - ⚠️ `harness:` in `agents/CONVENTIONS.md` frontmatter, or in any agent's `context.md` frontmatter, is set to a CLI that is not on PATH (`claude`, `codex`, `gemini`, `opencode`): ticks and peer panes would fail.
