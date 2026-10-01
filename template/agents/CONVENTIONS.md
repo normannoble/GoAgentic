@@ -16,6 +16,16 @@ This master is shared. A workspace's `agents/CONVENTIONS.md` carries frontmatter
 | `gap-notice` | `2h` | Idle gap after which the plugin's hook tells the agent how much time passed (`30m`, `2h`, `1d`, or `off`). See § Stale Sessions. |
 | `harness` | `claude` | The coding-agent CLI that runs unattended ticks and peer panes: `claude`, `codex`, `gemini`, or `opencode`. An agent's `context.md` may set its own `harness:` for peer panes (see § context.md). Interactive sessions work from any harness that has the framework commands installed (see § Invocation). |
 
+**Optional `## Agent creation` section.** Steps a workspace adds to every agent `/agents:new` creates: files beyond the standard set, a required field, an external setup step. `/agents:new` runs them in Phase 6 after its own steps, and Phase 7 checks they were done. Write each step as an outcome and name where it lands, for example:
+
+```markdown
+## Agent creation
+
+- Every agent gets an original logo at `<agent-dir>/logo.svg`, plus a 512px `logo.png`. Record its accent colour in `name.md`.
+```
+
+A step that needs {{PRINCIPAL}} outside the session (an account, a key, an upload) goes on the Post-Creation Admin Checklist the skill hands over, not into the agent's files.
+
 ## Reference files (read on demand, never at startup)
 
 Long procedures live beside this file in `reference/`. In plugin mode that is `${CLAUDE_PLUGIN_ROOT}/template/agents/reference/`; on another harness it is `$AGENT_FRAMEWORK_ROOT/template/agents/reference/` (the framework root named by the wrapper skill or exported by `tick.sh`); in copied mode it is `agents/reference/`. (These are the framework's reference files. An agent's own `reference/` folder is different: see § Memory → Agent reference.)
