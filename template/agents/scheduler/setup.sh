@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Idempotent cron installer for the agent scheduler (Linux, or macOS without launchd).
-# Ships with the `agents` plugin; copy agents/scheduler/ into the workspace first.
-# On macOS prefer install-launchd.sh: cron silently skips slots while the machine sleeps.
+# Idempotent cron installer for the agent scheduler: the fallback when neither launchd nor a
+# systemd user manager is available. Ships with the `agents` plugin; copy agents/scheduler/
+# into the workspace first. Prefer install.sh, which picks launchd on macOS and a systemd
+# timer on Linux: cron silently skips slots while the machine is asleep or off.
 # Adds an hourly cron entry that fires a Claude session to check
 # the task register and execute due tasks.
 #

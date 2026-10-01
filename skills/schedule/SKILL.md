@@ -1,7 +1,7 @@
 ---
-description: Manage the workspace's unattended scheduled tasks — list, add, remove, enable, disable a task in agents/scheduled-tasks.md; check the timer and last runs with status; install the hourly launchd/cron timer. Use /agents:schedule, /agents:schedule add, /agents:schedule status.
+description: Manage the workspace's unattended scheduled tasks — list, add, remove, enable, disable a task in agents/scheduled-tasks.md; check the timer and last runs with status; install the hourly launchd/systemd/cron timer. Use /agents:schedule, /agents:schedule add, /agents:schedule status.
 disable-model-invocation: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date), Bash(ls), Bash(tail), Bash(launchctl list), Bash(crontab -l), Bash(bash agents/scheduler/tick.sh --dry-run), Bash(bash agents/scheduler/install-launchd.sh), Bash(bash agents/scheduler/setup.sh), Bash(uname), AskUserQuestion
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date), Bash(ls), Bash(tail), Bash(launchctl list), Bash(systemctl --user list-timers *), Bash(crontab -l), Bash(bash agents/scheduler/tick.sh --dry-run), Bash(bash agents/scheduler/install.sh), Bash(bash agents/scheduler/install.sh --which), Bash(uname), AskUserQuestion
 argument-hint: [list | add | remove <id> | enable <id> | disable <id> | status | install]
 ---
 
@@ -19,7 +19,7 @@ Route on the first word of `$ARGUMENTS` (empty = `list`).
 
 ## list
 
-Table, one row per task: `| Id | Agent | Schedule | Mode | Ceiling | Enabled | Last run |`. Below it one line: `Timer: <installed as <label> | not installed>` (macOS: `launchctl list | grep agent-scheduler`; Linux: `crontab -l | grep agent-scheduler`). End with `Add: /agents:schedule add · Status: /agents:schedule status`.
+Table, one row per task: `| Id | Agent | Schedule | Mode | Ceiling | Enabled | Last run |`. Below it one line: `Timer: <installed as <label> | not installed>` (by `bash agents/scheduler/install.sh --which`: launchd → `launchctl list | grep agent-scheduler`; systemd → `systemctl --user list-timers *agent-scheduler*`; cron → `crontab -l | grep agent-scheduler`). End with `Add: /agents:schedule add · Status: /agents:schedule status`.
 
 ## add
 
@@ -46,7 +46,7 @@ Find the block. `remove` deletes it (show it first, one confirmation). `enable`/
 ## status
 
 Show:
-- Timer: label and whether loaded (`launchctl list` / `crontab -l`).
+- Timer: label and whether loaded (`launchctl list` / `systemctl --user list-timers` / `crontab -l`, by `install.sh --which`).
 - `bash agents/scheduler/tick.sh --dry-run` → what is due right now.
 - Last 5 gate lines from `agents/scheduler/logs/cron.log` (`tail`).
 - The newest `## ` entry in the newest `agents/scheduler/logs/YYYY-MM.md`.
@@ -54,7 +54,7 @@ Show:
 
 ## install
 
-`uname` → macOS: run `bash agents/scheduler/install-launchd.sh`; Linux: `bash agents/scheduler/setup.sh`. Show the script's output. Then set `scheduler: launchd` (or `cron`) in the frontmatter of `agents/CONVENTIONS.md`. Say: `Timer fires at :07 every hour. Claude runs only when a task is due. Check: /agents:schedule status`.
+Run `bash agents/scheduler/install.sh`. It picks the backend for this machine: launchd on macOS, a systemd user timer on Linux with systemd, cron otherwise (`AGENT_SCHEDULER_BACKEND` overrides). Show the script's output, including any lingering warning. Then set `scheduler:` to the backend `bash agents/scheduler/install.sh --which` prints (`launchd`, `systemd` or `cron`) in the frontmatter of `agents/CONVENTIONS.md`. Say: `Timer fires at :07 every hour. Claude runs only when a task is due. Check: /agents:schedule status`.
 
 ## Rules
 
