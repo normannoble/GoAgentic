@@ -711,3 +711,19 @@ func TestParkedNote(t *testing.T) {
 		}
 	}
 }
+
+func TestHeadlineShortensLongActions(t *testing.T) {
+	for action, want := range map[string]string{
+		"Get the real agreed Rate Card (Alex Dogliotti / Dragana). Deprioritised 2026-09-23 — time matters":              "Get the real agreed Rate Card (Alex Dogliotti / Dragana)",
+		"Sync work/contracts/data-sharing/framework.md with the deck: \"customer\" not \"learner\"":                      "Sync work/contracts/data-sharing/framework.md with the deck",
+		"Wire the Drive push into _generate_sows.py (or a sibling script) so a sheet change re-generates and re-uploads": "Wire the Drive push into _generate_sows.py (or a sibling script) so a…",
+		"Short action": "Short action",
+		"Backend test coverage: notification domain.":                                                   "Backend test coverage: notification domain.", // short: left whole
+		"Atticus GitHub read account + goaspire org invite (low urgency — Norman's gh works for reads)": "Atticus GitHub read account + goaspire org invite (low urgency…",
+		"**Bold lead.** with a long tail ...":                                                           "Bold lead",
+	} {
+		if got := (Item{Action: action}).Headline(); got != want {
+			t.Errorf("Headline(%q) = %q, want %q", action, got, want)
+		}
+	}
+}

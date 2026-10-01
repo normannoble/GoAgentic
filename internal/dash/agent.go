@@ -297,7 +297,44 @@ func (i Item) Headline() string {
 	if m := leadBoldRe.FindStringSubmatch(strings.TrimSpace(i.Action)); m != nil {
 		return strings.TrimRight(cleanMarkdown(m[1]), ".:")
 	}
-	return cleanMarkdown(i.Action)
+	return shorten(cleanMarkdown(i.Action))
+}
+
+// headlineMax is the longest headline, in runes, shown for an action with no
+// bold lead phrase, so the owner and status still fit on the line.
+const headlineMax = 70
+
+// shorten leaves an action of up to headlineMax runes whole. A longer one is
+// cut to its first clause (". ", " — ", "; ", ": " outside brackets, at least
+// 15 bytes in) and then to whole words within headlineMax.
+func shorten(s string) string {
+	if len([]rune(s)) <= headlineMax {
+		return s
+	}
+	cut := len(s)
+	for _, sep := range []string{". ", " — ", "; ", ": "} {
+		for from := 0; ; {
+			j := strings.Index(s[from:], sep)
+			if j < 0 {
+				break
+			}
+			j += from
+			if j >= 15 && j < cut && strings.Count(s[:j], "(") <= strings.Count(s[:j], ")") {
+				cut = j
+				break
+			}
+			from = j + len(sep)
+		}
+	}
+	s = strings.TrimRight(s[:cut], ".:;")
+	if r := []rune(s); len(r) > headlineMax {
+		s = string(r[:headlineMax])
+		if j := strings.LastIndex(s, " "); j > headlineMax/2 {
+			s = s[:j]
+		}
+		return strings.TrimRight(s, " ,;:—-") + "…"
+	}
+	return s
 }
 
 // The four standard states a status starts with (master conventions
