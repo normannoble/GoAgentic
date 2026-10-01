@@ -17,6 +17,16 @@ This master is shared. A workspace's `agents/CONVENTIONS.md` carries frontmatter
 | `harness` | `claude` | The coding-agent CLI that runs unattended ticks and peer panes: `claude`, `codex`, `gemini`, `opencode`, `pi`, or `cursor`. An agent's `context.md` may set its own `harness:` for peer panes (see § context.md). Interactive sessions work from any harness that has the framework commands installed (see § Invocation). |
 | `model` | *(the CLI's default)* | The model ticks and peer panes run on, passed to the harness as `--model <value>` in that CLI's own syntax (`claude-sonnet-5-5`, `gpt-5`, `openrouter/qwen/qwen3-coder`). An agent's `context.md` may set its own `model:` for peer panes. OpenRouter is a model provider, not a harness: reach it through `opencode` or `pi`. |
 
+**Optional `## Agent creation` section.** Steps a workspace adds to every agent `/agents:new` creates: files beyond the standard set, a required field, an external setup step. `/agents:new` runs them in Phase 6 after its own steps, and Phase 7 checks they were done. Write each step as an outcome and name where it lands, for example:
+
+```markdown
+## Agent creation
+
+- Every agent gets an original logo at `<agent-dir>/logo.svg`, plus a 512px `logo.png`. Record its accent colour in `name.md`.
+```
+
+A step that needs {{PRINCIPAL}} outside the session (an account, a key, an upload) goes on the Post-Creation Admin Checklist the skill hands over, not into the agent's files.
+
 ## Reference files (read on demand, never at startup)
 
 Long procedures live beside this file in `reference/`. In plugin mode that is `${CLAUDE_PLUGIN_ROOT}/template/agents/reference/`; on another harness it is `$AGENT_FRAMEWORK_ROOT/template/agents/reference/` (the framework root named by the wrapper skill or exported by `tick.sh`); in copied mode it is `agents/reference/`. (These are the framework's reference files. An agent's own `reference/` folder is different: see § Memory → Agent reference.)
