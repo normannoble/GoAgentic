@@ -20,7 +20,7 @@ Every Herdr pane carries `HERDR_ENV=1`, `HERDR_PANE_ID`, `HERDR_WORKSPACE_ID`, `
 
 At startup (`/agents:start`, step 0b) the router, when `HERDR_ENV` is 1:
 
-1. Tags the pane's agent with the framework name: `herdr agent rename "$HERDR_PANE_ID" <name-lowercase>` (Herdr names are `[a-z][a-z0-9_-]{0,31}` and unique among live agents; a peer session uses `<name>-peer`).
+1. Tags the pane's agent with the framework name: `herdr agent rename "$HERDR_PANE_ID" <name-lowercase>` (Herdr names are `[a-z][a-z0-9_-]{0,31}` and unique among live agents; a peer session uses `<name>-peer`). Herdr refuses an agent rename with `agent_launch_pending` until the session's first turn has ended, so in a human session the rename often fails at startup; the router then retries it as the first tool call of the next turn. Peer panes are named at launch by `herdr agent start`, so they never hit this.
 2. Labels the pane: `herdr pane rename "$HERDR_PANE_ID" "<Name> - <Role title>"` for a human session, `"<Name> - Peer"` for a peer session. The role title is `title:` from `context.md`. A human session also labels its tab the same way (`herdr tab rename "$HERDR_TAB_ID" ...`); a peer session never renames the tab, because it sits in the caller's tab.
 3. Records `herdr_pane: <id>` in the session memory frontmatter at session end, so a resumed conversation knows where it lived.
 
