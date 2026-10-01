@@ -12,7 +12,7 @@ This master is shared. A workspace's `agents/CONVENTIONS.md` carries frontmatter
 |-----|---------|--------|
 | `ticket-column` | `Ticket` | Name of the issue-tracker column in `actions.md` (e.g. `Linear`, `Jira`). The ticket sync rules in § actions.md apply to that tracker. |
 | `inbound` | `none` | Channel checked in step 2 of the Session Priority Declaration (`email`, `slack`, `none`). The triage command lives in each agent's `tools.md`. |
-| `scheduler` | `none` | `launchd` or `cron` if the workspace runs the shared scheduler (see § Session Types). |
+| `scheduler` | `none` | `launchd`, `systemd` or `cron` if the workspace runs the shared scheduler (see § Session Types). |
 | `gap-notice` | `2h` | Idle gap after which the plugin's hook tells the agent how much time passed (`30m`, `2h`, `1d`, or `off`). See § Stale Sessions. |
 | `harness` | `claude` | The coding-agent CLI that runs unattended ticks and peer panes: `claude`, `codex`, `gemini`, or `opencode`. An agent's `context.md` may set its own `harness:` for peer panes (see § context.md). Interactive sessions work from any harness that has the framework commands installed (see § Invocation). |
 

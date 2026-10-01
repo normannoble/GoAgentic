@@ -50,7 +50,7 @@ naming-examples: <pool>
 reserved: []
 ticket-column: Ticket
 inbound: none
-scheduler: none   # launchd | cron once /agents:schedule install has run
+scheduler: none   # launchd | systemd | cron once /agents:schedule install has run
 harness: <claude | codex | gemini | opencode — the CLI that runs ticks and peer panes; omit the line for claude>
 ---
 
@@ -64,10 +64,10 @@ No workspace-specific overrides yet. The master applies in full.
 **`agents/tools/INDEX.md`** (if missing): copy `TEMPLATE/agents/tools/INDEX.md`, replacing `{{PRINCIPAL}}` with the principal.
 
 **Scheduler** (unless `--no-scheduler`; skip any part that exists):
-- `mkdir -p agents/scheduler/logs` and copy `TEMPLATE/agents/scheduler/{prompt.md,policies.md,tick.sh,gate.py,install-launchd.sh,setup.sh}` into `agents/scheduler/`. Replace `{{PRINCIPAL}}` in the copies with the principal. `chmod +x` the two `.sh` files and `tick.sh`.
+- `mkdir -p agents/scheduler/logs` and copy `TEMPLATE/agents/scheduler/{prompt.md,policies.md,tick.sh,gate.py,install.sh,install-launchd.sh,install-systemd.sh,setup.sh}` into `agents/scheduler/`. Replace `{{PRINCIPAL}}` in the copies with the principal. `chmod +x` every `.sh` file.
 - Copy `TEMPLATE/agents/scheduler/scheduled-tasks.md` to `agents/scheduled-tasks.md`, replacing `{{PRINCIPAL}}` and `YYYY-MM-DD` with today's date. The register ships with one disabled `example-task`.
 - Add `agents/scheduler/logs/` to `.gitignore` if not already ignored.
-- Do **not** install the launchd/cron job here. Say: `Timer not installed. When you add a real task, run /agents:schedule install.`
+- Do **not** install the launchd/systemd/cron job here. Say: `Timer not installed. When you add a real task, run /agents:schedule install.`
 
 **Workspace layout** (if chosen): `mkdir -p thinking work/projects work/operations knowledge/systems knowledge/people knowledge/processes knowledge/company outputs`. Copy `TEMPLATE/CONVENTIONS.md` to `CONVENTIONS.md` and `TEMPLATE/../PHILOSOPHY.md` to `PHILOSOPHY.md` only if each is missing. Put an empty `.gitkeep` in each new empty folder.
 

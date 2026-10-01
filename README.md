@@ -46,7 +46,7 @@ This gives every project these skills:
 | `/agents:doctor` | Health review: startup cost, tracker and memory hygiene, staleness. Read-only, recommends the next commands |
 | `/agents:harness` | Show which CLI each agent runs under — peer sessions and ticks — and whether it is installed. Read-only |
 | `/agents:ask` | Ask another agent in the same workspace (Herdr only): fresh pane, peer session, written reply, pane closed |
-| `/agents:schedule` | Unattended tasks: `add`, `list`, `remove`, `enable`, `disable`, `status`, `install` the hourly launchd/cron timer. A gate script runs Claude only when a task is due |
+| `/agents:schedule` | Unattended tasks: `add`, `list`, `remove`, `enable`, `disable`, `status`, `install` the hourly timer (launchd on macOS, systemd on Linux, cron as a fallback). A gate script runs Claude only when a task is due |
 
 Then, in the repo where you want agents:
 
@@ -314,7 +314,7 @@ Ticks and peer sessions never commit, never send anything, and stay at autonomy 
 
 ### Scheduler
 
-`/agents:init` copies `agents/scheduler/` and a task register `agents/scheduled-tasks.md` into the workspace. `/agents:schedule add` writes a task (agent, cron-style time, mode, instructions); `/agents:schedule install` starts an hourly launchd (macOS) or cron timer. Each hour `tick.sh` runs a gate that checks the register and starts Claude only when a task is due, so an idle hour costs nothing. Results land in the agent's inbox.
+`/agents:init` copies `agents/scheduler/` and a task register `agents/scheduled-tasks.md` into the workspace. `/agents:schedule add` writes a task (agent, cron-style time, mode, instructions); `/agents:schedule install` runs `agents/scheduler/install.sh`, which starts an hourly launchd job on macOS, a systemd user timer on Linux, or cron where neither exists. launchd and systemd both run a slot missed while the machine was asleep or off; cron skips it. Each hour `tick.sh` runs a gate that checks the register and starts Claude only when a task is due, so an idle hour costs nothing. Results land in the agent's inbox.
 
 ### Herdr
 

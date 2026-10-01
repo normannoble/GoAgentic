@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scheduler tick. Called by launchd or cron every hour at :07.
+# Scheduler tick. Called by launchd, a systemd timer or cron every hour at :07.
 #
 # Step 1 is a cheap gate (gate.py, no Claude): parse agents/scheduled-tasks.md and
 # decide whether any enabled task is due right now. If none is, log one line and exit.
@@ -24,7 +24,7 @@ cd "$WORKSPACE"
 DRY_RUN=false
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=true
 
-# nvm: launchd/cron start with a bare PATH; npx-based MCP servers need node.
+# nvm: launchd/systemd/cron start with a bare PATH; npx-based MCP servers need node.
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 # shellcheck disable=SC1091
 [[ -s "$NVM_DIR/nvm.sh" ]] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1 || true
