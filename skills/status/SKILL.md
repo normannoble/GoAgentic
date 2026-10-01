@@ -20,7 +20,7 @@ Glob for both `agents/*/context.md` (single-domain) and `agents/*/*/context.md` 
 1. Run `date` to get today's date (used for staleness).
 2. Glob as above. For each agent directory, read:
    - `context.md` frontmatter → `title` (the **Role**) and `scope`.
-   - `actions.md` → the `Last reviewed:` date, the `Next session:` line if present, and the **open P1 rows** (fall back to P2 if no P1). Use the `Next session:` line as the agent's **current focus / mission** when it exists; otherwise take the Action cell of the top 1–2 open items, and note any whose Status reads blocked / gated / awaiting.
+   - `actions.md` → the `Last reviewed:` date, the `Next session:` line if present, and the **open P1 rows** (fall back to P2 if no P1). Use the `Next session:` line as the agent's **current focus / mission** when it exists; otherwise take the Action cell of the top 1–2 open items, and note any whose Status starts `Waiting on` (older trackers: reads blocked / gated / awaiting).
    - `role.md` → the **Primary Objective** line, as a fallback "current focus" only if the agent has no open actions.
 3. Render a **GitHub-flavoured markdown table**, one row per agent:
 
@@ -38,7 +38,7 @@ Glob for both `agents/*/context.md` (single-domain) and `agents/*/*/context.md` 
    - Add a leading **Scope** column **only if** more than one distinct scope exists across the agents (otherwise omit it).
 4. Below the table, add a short cross-org rollup as **bullets** (these are lists, not a grid):
    - **In flight:** active, unblocked missions across the org.
-   - **Blocked / gated:** items whose status is blocked / gated / awaiting, each with what it waits on.
+   - **Blocked / gated:** items whose status starts `Waiting on` someone other than the principal (older trackers: blocked / gated / awaiting), each with what it waits on. Items `Waiting on` the principal go under a separate **Waiting on <first name>** line.
    - **Stale (>14 days):** agents whose `Last reviewed` is more than 14 days before today.
 5. If a scope filter was given (e.g., `/agents:status Acme`), restrict to that scope.
 

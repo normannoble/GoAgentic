@@ -145,12 +145,23 @@ Priority uses P1/P2/P3:
 - **P2** — Should progress when P1s are clear. Tracked actively.
 - **P3** — Tracked, not urgent. Revisit periodically.
 
+Status **starts with one of four states**, optionally followed by ` — ` and a short note:
+
+| State | Meaning |
+|-------|---------|
+| `Not started` | Live; nobody has begun it |
+| `In progress` | Being worked |
+| `Waiting on <who>` | Cannot move until someone acts. Name them: `Waiting on <{{PRINCIPAL}}'s first name>`, `Waiting on Dario`, `Waiting on #51` |
+| `Parked` | Deliberately not being worked (deferred, on hold, dormant, watching) |
+
+Examples: `In progress — draft 2 of 3`, `Waiting on Dario — tech = 25 seats set`, `Parked — revisit after TE go`. Done items move to Completed, so there is no Done state. Keep the note short; the story belongs in the Action cell or the session log. `Waiting on` replaces "blocked", "gated" and "awaiting": what matters is who it waits on. Write {{PRINCIPAL}}'s first name, not "me", so the line reads the same from anywhere. Tools key on the state: `goagentic dash` lists items waiting on {{PRINCIPAL}} under "Waiting on", any other `Waiting on` as blocked, and greys `Parked`. Older free-text statuses still work; move them to the four states at the next full pass (§ Tracker Hygiene).
+
 Session memories reference `actions.md` for action items rather than duplicating them. This prevents action items from being lost in old session logs.
 
 #### Tracker Hygiene
 
 1. **No ghosts in Open.** When an item completes, move it to Completed and delete the row from Open. No strikethrough-then-leave-it pattern. The Open section must be a reliable list of live work.
-2. **Fortnightly full pass.** Every other week (or equivalent cadence session), audit the full tracker: refresh stale due dates, cross-check shared items against other agents' trackers, verify statuses against external state, and check P1 count stays under ~8.
+2. **Fortnightly full pass.** Every other week (or equivalent cadence session), audit the full tracker: refresh stale due dates, cross-check shared items against other agents' trackers, verify statuses against external state, move any status that does not start with one of the four states onto them, and check P1 count stays under ~8.
 3. **Priority sections.** Structure the Open table with P1 / P2 / P3 sub-sections. Flat lists don't scale past ~30 items.
 4. **Archive completed items monthly.** The Completed table keeps only the last 30 days. Older items move to `actions-archive.md` in the same directory — same table format, out of the startup read path. Create the archive file when the agent is created; first archival happens when items age past 30 days.
 

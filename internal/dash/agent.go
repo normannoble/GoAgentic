@@ -281,22 +281,69 @@ func (i Item) Headline() string {
 	return cleanMarkdown(i.Action)
 }
 
+// The four standard states a status starts with (master conventions
+// § actions.md). Older free-text statuses fall back to keyword matching.
+const (
+	StateNotStarted = "Not started"
+	StateInProgress = "In progress"
+	StateWaiting    = "Waiting on"
+	StateParked     = "Parked"
+)
+
+var (
+	stateRe = regexp.MustCompile(`(?i)^(not started|in progress|waiting on|parked)\b`)
+	whoRe   = regexp.MustCompile(`^(.*?)(\s+[—–-]\s+|[;(,]|$)`)
+)
+
+// State returns the standard state the status starts with, and for
+// "Waiting on" who it waits on. ok is false for a free-text status.
+func (i Item) State() (state, who string, ok bool) {
+	status := strings.TrimSpace(i.Status)
+	m := stateRe.FindStringSubmatch(status)
+	if m == nil {
+		return "", "", false
+	}
+	for _, st := range []string{StateNotStarted, StateInProgress, StateWaiting, StateParked} {
+		if strings.EqualFold(m[1], st) {
+			state = st
+		}
+	}
+	if state == StateWaiting {
+		rest := strings.TrimSpace(status[len(m[0]):])
+		who = strings.TrimSpace(whoRe.FindStringSubmatch(rest)[1])
+	}
+	return state, who, true
+}
+
 // blockedRe matches whole words only, so "Unblocked" is not a block.
 var blockedRe = regexp.MustCompile(`\b(block\w*|gated|await\w*|waiting|on hold)\b`)
 
 // Blocked reports whether the status says the item is waiting on something.
 func (i Item) Blocked() bool {
+	if state, _, ok := i.State(); ok {
+		return state == StateWaiting
+	}
 	return blockedRe.MatchString(strings.ToLower(i.Status))
 }
 
-// WaitsOn reports whether the item is blocked on the principal
-// ("awaiting Norman"). Such an item is the principal's to move, not a
-// blocker for the agent to chase.
+// WaitsOn reports whether the item is waiting on the principal ("Waiting
+// on Norman", or in older trackers "awaiting Norman"). Such an item is the
+// principal's to move, not a blocker for the agent to chase.
 func (i Item) WaitsOn(principal string) bool {
-	status := strings.ToLower(i.Status)
+	state, who, ok := i.State()
+	if ok && state != StateWaiting {
+		return false
+	}
 	for _, part := range strings.Fields(strings.ToLower(principal)) {
-		re := `\b(block\w*|gated|await\w*|waiting)\s+((on|for|by)\s+)?` + regexp.QuoteMeta(part) + `\b`
-		if regexp.MustCompile(re).MatchString(status) {
+		name := regexp.QuoteMeta(part)
+		if ok {
+			if regexp.MustCompile(`\b` + name + `\b`).MatchString(strings.ToLower(who)) {
+				return true
+			}
+			continue
+		}
+		re := `\b(block\w*|gated|await\w*|waiting)\s+((on|for|by)\s+)?` + name + `\b`
+		if regexp.MustCompile(re).MatchString(strings.ToLower(i.Status)) {
 			return true
 		}
 	}
@@ -309,17 +356,23 @@ func (i Item) BlockedOnOthers(principal string) bool {
 	return i.Blocked() && !i.Parked() && !i.WaitsOn(principal)
 }
 
-// notStartedRe matches a status that says work has not begun: "Not
-// started", "Open", "To do", or nothing at all.
+// notStartedRe matches a free-text status that says work has not begun:
+// "Open", "To do", or nothing at all.
 var notStartedRe = regexp.MustCompile(`^((not (yet )?started|open|new|to ?do)\b|$)`)
 
 // NotStarted reports whether the item is live but nobody has begun it.
 func (i Item) NotStarted() bool {
+	if state, _, ok := i.State(); ok {
+		return state == StateNotStarted
+	}
 	return notStartedRe.MatchString(strings.ToLower(strings.TrimSpace(i.Status))) && !i.Parked()
 }
 
 // Parked reports whether the item is deliberately not being worked.
 func (i Item) Parked() bool {
+	if state, _, ok := i.State(); ok {
+		return state == StateParked
+	}
 	s := strings.ToLower(i.Status)
 	for _, w := range []string{"parked", "defer", "hold", "held", "dormant", "deprioriti", "done", "closed"} {
 		if strings.Contains(s, w) {

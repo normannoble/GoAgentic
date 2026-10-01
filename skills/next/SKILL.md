@@ -22,8 +22,8 @@ Glob for both `agents/*/context.md` (single-domain) and `agents/*/*/context.md` 
    - `context.md` frontmatter → `title`, `scope`.
    - `actions.md` → `Last reviewed`, and **every open item** with its **Action text, Owner, and Status**.
 3. **Classify** each open item:
-   - **Actionable now** — Status is *not* blocked / gated / awaiting / holding, and the Owner is the agent or the principal (not "waiting on another agent or an external event").
-   - **Queued** — Status reads blocked / gated / awaiting / holding, or the Action text says it waits on another item, an external event, or incoming evidence. Queued items are **not** candidates for "next."
+   - **Actionable now** — Status starts `Not started` or `In progress` (older trackers: is *not* blocked / gated / awaiting / holding), and the Owner is the agent or the principal (not "waiting on another agent or an external event").
+   - **Queued** — Status starts `Waiting on` or `Parked` (older trackers: reads blocked / gated / awaiting / holding), or the Action text says it waits on another item, an external event, or incoming evidence. Queued items are **not** candidates for "next."
 4. **Score the actionable items by leverage**, reading the Action text for dependency cues — phrases like *unblocks, gates, blocks #N, head of chain, feeds, →, critical path, tracer bullet, next best action, then*. An item scores higher when it (a) sits on the **stated critical path** / is named the next step, and/or (b) **unblocks the most downstream work** (other agents' items depend on it).
 5. Output a **decisive, single recommendation** — not a list:
    - **▶ Next:** *Go to **\<Agent>** — **\<action>** — because **\<why: critical path · unblocks X & Y · clears a blocker>**.*

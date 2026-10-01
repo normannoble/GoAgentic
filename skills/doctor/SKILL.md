@@ -45,7 +45,8 @@ Always name the **single biggest file** and its share. That is the fix.
 - ⚠️ more than 8 open P1 rows (count table rows under `### P1` before the next heading).
 - ⚠️ Open contains struck-through rows (`~~`).
 - ⚠️ Completed table has rows dated more than 30 days ago and `actions-archive.md` exists (they should be archived); ⚠️ `actions-archive.md` missing.
-- ⚠️ any row whose Status cell says blocked / gated / awaiting for more than 30 days (compare the row's date if it has one; otherwise skip).
+- ℹ️ Open rows whose Status does not start with `Not started`, `In progress`, `Waiting on` or `Parked` (master § actions.md): give the count and share, e.g. `12 of 30 statuses free-text`. No fix needed beyond the next full tracker pass.
+- ⚠️ any row whose Status cell starts `Waiting on` (or says blocked / gated / awaiting) for more than 30 days (compare the row's date if it has one; otherwise skip).
 
 ### C. Memory
 

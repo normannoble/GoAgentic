@@ -243,6 +243,39 @@ func TestPlanSteps(t *testing.T) {
 	}
 }
 
+func TestStandardStates(t *testing.T) {
+	const norman = "Norman Noble"
+	cases := []struct {
+		status, state, who                       string
+		blocked, waitsOn, others, parked, notYet bool
+	}{
+		{"Not started", StateNotStarted, "", false, false, false, false, true},
+		{"In Progress — read done", StateInProgress, "", false, false, false, false, false}, // "done" in the note is not parked
+		{"In progress — waiting on Dario for one figure", StateInProgress, "", false, false, false, false, false},
+		{"Waiting on Norman", StateWaiting, "Norman", true, true, false, false, false},
+		{"Waiting on Norman's posting", StateWaiting, "Norman's posting", true, true, false, false, false},
+		{"Waiting on Dario — tech = 25 seats set", StateWaiting, "Dario", true, false, true, false, false},
+		{"Waiting on Vishen/Dario (Norman chasing)", StateWaiting, "Vishen/Dario", true, false, true, false, false},
+		{"Waiting on #51", StateWaiting, "#51", true, false, true, false, false},
+		{"Parked — revisit after TE go", StateParked, "", false, false, false, true, false},
+	}
+	for _, c := range cases {
+		it := Item{Status: c.status}
+		state, who, ok := it.State()
+		if !ok || state != c.state || who != c.who {
+			t.Errorf("State(%q) = %q, %q, %v; want %q, %q", c.status, state, who, ok, c.state, c.who)
+		}
+		if it.Blocked() != c.blocked || it.WaitsOn(norman) != c.waitsOn || it.BlockedOnOthers(norman) != c.others ||
+			it.Parked() != c.parked || it.NotStarted() != c.notYet {
+			t.Errorf("%q: blocked %v waitsOn %v others %v parked %v notStarted %v", c.status,
+				it.Blocked(), it.WaitsOn(norman), it.BlockedOnOthers(norman), it.Parked(), it.NotStarted())
+		}
+	}
+	if _, _, ok := (Item{Status: "Deferred to Q4"}).State(); ok {
+		t.Error("free text is not a standard state")
+	}
+}
+
 func TestNextUpAndPrincipal(t *testing.T) {
 	a := &Agent{Open: parseActions(sectionedTracker).open}
 	it, ok := a.NextUp("Norman Noble")
