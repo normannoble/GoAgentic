@@ -316,28 +316,31 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 		}
 	}
 
-	if len(a.Open) > 0 {
-		add("")
-		c := a.Counts()
-		add(st.Head.Render(fmt.Sprintf("Open actions — P1 %d · P2 %d · P3 %d", c["P1"], c["P2"], c["P3"])))
-		// Blocked P1s are listed above, so they are left out here; the
-		// counts in the heading still include them. Within each priority,
-		// items under way come first, then not started, then parked.
-		shown, listed := 0, len(blocked)
-		stage := func(it Item) int {
-			switch {
-			case it.Parked():
-				return 2
-			case it.NotStarted():
-				return 1
-			}
-			return 0
+	var live, parked []Item
+	for _, it := range a.Open {
+		if it.Parked() {
+			parked = append(parked, it)
+		} else {
+			live = append(live, it)
 		}
+	}
+
+	if len(live) > 0 {
+		add("")
+		c := map[string]int{}
+		for _, it := range live {
+			c[it.Priority]++
+		}
+		add(st.Head.Render(fmt.Sprintf("Open actions — P1 %d · P2 %d · P3 %d", c["P1"], c["P2"], c["P3"])))
+		// Blocked P1s are listed above and parked items below, so both are
+		// left out here; the counts in the heading still include blocked
+		// P1s. Within each priority, items under way come before not started.
+		shown, listed := 0, len(blocked)
 		var ordered []Item
 		for _, p := range []string{"P1", "P2", "P3", ""} {
-			for st := 0; st <= 2; st++ {
-				for _, it := range a.Open {
-					if it.Priority == p && stage(it) == st {
+			for _, notYet := range []bool{false, true} {
+				for _, it := range live {
+					if it.Priority == p && it.NotStarted() == notYet {
 						ordered = append(ordered, it)
 					}
 				}
@@ -354,13 +357,32 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 			line := fmt.Sprintf("  %-2s ", it.Priority) + strings.TrimPrefix(itemLine(it, st), "  ")
 			if it.BlockedOnOthers(ws.Principal) {
 				line += st.Dim.Render("  ■ blocked")
-			} else if it.Parked() {
-				line = st.Dim.Render(line)
 			}
 			add(line)
 		}
-		if more := len(a.Open) - listed - shown; more > 0 {
+		if more := len(live) - listed - shown; more > 0 {
 			add(st.Dim.Render(fmt.Sprintf("  … %d more", more)))
+		}
+	}
+
+	if len(parked) > 0 {
+		add("")
+		add(st.Head.Render(fmt.Sprintf("Parked — %d", len(parked))))
+		// A capped (preview) list shows only the count; the full view lists them.
+		for _, p := range []string{"P1", "P2", "P3", ""} {
+			if maxItems > 0 {
+				break
+			}
+			for _, it := range parked {
+				if it.Priority != p {
+					continue
+				}
+				line := fmt.Sprintf("  %-2s #%-3s %s", it.Priority, strings.TrimPrefix(it.ID, "#"), it.Headline())
+				if note := parkedNote(it.Status); note != "" {
+					line += "  " + note
+				}
+				add(st.Dim.Render(line))
+			}
 		}
 	}
 
@@ -457,6 +479,15 @@ func itemLine(it Item, st Styles) string {
 		line += st.Dim.Render("  " + it.Status)
 	}
 	return line
+}
+
+// parkedNote is a parked item's status without the redundant state word:
+// "Parked — shelf reference" → "shelf reference". Free-text statuses stay whole.
+func parkedNote(status string) string {
+	if m := stateRe.FindStringIndex(status); m != nil {
+		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(status[m[1]:]), "—–-:"))
+	}
+	return status
 }
 
 func firstName(principal string) string {

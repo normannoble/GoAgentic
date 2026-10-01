@@ -184,8 +184,12 @@ func TestDetailLiveBeforeParked(t *testing.T) {
 	}}
 	out := ansi.Strip(strings.Join(Detail(ws, a, 120, 0, NewStyles(true)), "\n"))
 	pos := func(id string) int { return strings.Index(out, id) }
-	if !(pos("#70") < pos("#15") && pos("#15") < pos("#66") && pos("#66") < pos("#19") && pos("#19") < pos("#9 ")) {
-		t.Errorf("want P2s under way, then not started, then parked, then P3:\n%s", out)
+	if !(pos("#70") < pos("#15") && pos("#15") < pos("#9 ") && pos("#9 ") < pos("Parked — 2") &&
+		pos("Parked — 2") < pos("#66") && pos("#66") < pos("#19")) {
+		t.Errorf("want P2s under way, then not started, then P3, then a Parked section:\n%s", out)
+	}
+	if !strings.Contains(out, "Open actions — P1 0 · P2 2 · P3 1") {
+		t.Errorf("open heading should not count parked items:\n%s", out)
 	}
 
 	for status, want := range map[string]bool{
@@ -399,7 +403,9 @@ func TestSnapshotAndJSON(t *testing.T) {
 		"» #3 ship the thing → #5 tidy", // the agent's own plan wins
 		"(no open actions)",
 		"09-27 New session",
-		"Open actions — P1 1 · P2 3 · P3 1",
+		"Open actions — P1 1 · P2 3 · P3 0",
+		"Parked — 1",
+		"P3 #8   Someday",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("snapshot lacks %q:\n%s", want, out)
@@ -690,5 +696,18 @@ func TestFleet(t *testing.T) {
 
 	if _, err := ScanFleet(filepath.Join(parent, "notes"), Options{Now: now}); err == nil {
 		t.Error("a directory with no workspaces must be an error")
+	}
+}
+
+func TestParkedNote(t *testing.T) {
+	for in, want := range map[string]string{
+		"Parked — shelf reference": "shelf reference",
+		"parked":                   "",
+		"Parked: until Q1":         "until Q1",
+		"Deferred by Norman":       "Deferred by Norman",
+	} {
+		if got := parkedNote(in); got != want {
+			t.Errorf("parkedNote(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
