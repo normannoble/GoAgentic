@@ -63,7 +63,7 @@ Always name the **single biggest file** and its share. That is the fix.
 - ❌ a path under `## Startup Context` in `context.md` that does not exist. Skip placeholder bullets such as `(none yet …)`. ⚠️ a bullet there that is not a workspace path at all (a URL, a wiki page name, prose): the agent cannot load it at startup; move it to the body of `context.md`.
 - ⚠️ a path under `## Startup Context` points into the agent's `reference/` (reference files are read on demand, never at startup).
 - ⚠️ `memory/scheduled/inbox.md` exists and has `UNPROCESSED` entries (count them). Count only entry headings (`### <timestamp> — <task> — UNPROCESSED` with a real date); the file's format header mentions the word too, and that is not an entry.
-- ⚠️ `peer/` has more than 10 files, or any file with `status: open` older than 7 days (a peer request nobody answered).
+- ⚠️ `peer/` has more than 10 files (fix: tracker cleanup archives them; `peer/archive/` is not counted), or any file with `status: open` older than 7 days (an exchange that failed or a handover nobody picked up; if the file already holds a reply, only its status is stale). Name the `needs-principal` files: they wait on the principal.
 - ⚠️ a playbook (`playbooks/*.md`) has no `## Trigger` section. ℹ️ `playbooks/` is empty (normal for a new agent; mention once, no fix needed).
 - ℹ️ active agent whose `Last reviewed` is > 60 days old: suggest retiring it (`status: retired` in `context.md`).
 

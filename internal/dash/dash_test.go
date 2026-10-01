@@ -317,7 +317,7 @@ func fixture(t *testing.T) string {
 	write(t, filepath.Join(sig, "actions.md"), sectionedTracker)
 	write(t, filepath.Join(sig, "memory/sessions/2026-09-20-old.md"), "---\ndate: 2026-09-20\n---\n# Old session\n\nOld.\n")
 	write(t, filepath.Join(sig, "memory/sessions/2026-09-27-new.md"), "---\ndate: 2026-09-27\ntype: session\n---\n\n# New session\n\nDid the **new** thing.\nAnd more.\n\n## Details\nignored\n")
-	write(t, filepath.Join(sig, "memory/scheduled/inbox.md"), "## a\nUNPROCESSED\n## b\nPROCESSED\n")
+	write(t, filepath.Join(sig, "memory/scheduled/inbox.md"), "Drain `UNPROCESSED` entries at startup.\n### <ISO-8601 timestamp> — <task-id> — UNPROCESSED\n### 2026-09-26T09:07+08:00 — watchdog — UNPROCESSED\nbody\n### 2026-09-25T09:07+08:00 — watchdog — PROCESSED (drained)\n")
 
 	bad := filepath.Join(root, "agents/Varro")
 	write(t, filepath.Join(bad, "context.md"), "---\ntitle: Ops\n---\n")

@@ -14,4 +14,5 @@ When {{PRINCIPAL}} asks you to review or clean up your action tracker, follow th
 6. Normalise statuses: every Open status starts with `Not started`, `In progress`, `Waiting on <who>` or `Parked` (master § actions.md), with any detail after ` — `. Blocked / gated / awaiting → `Waiting on <who>`; deferred / on hold / dormant / backlog / watch → `Parked`; Open / To do → `Not started`. Move long status narrative into the Action cell or drop it
 7. Check P1 count — if >8, something needs deprioritising
 8. Scan for items that may be moot or complete but not marked — present candidates to {{PRINCIPAL}}
-9. Present a summary of changes for {{PRINCIPAL}}'s confirmation before saving
+9. Tidy `peer/` (`reference/peer.md` § Statuses, Archiving): correct statuses on files that already hold a reply, turn stale `open` requests into answers or tracker items, and move `done` files and `answered` files older than 14 days to `peer/archive/`
+10. Present a summary of changes for {{PRINCIPAL}}'s confirmation before saving

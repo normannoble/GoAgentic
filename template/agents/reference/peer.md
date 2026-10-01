@@ -37,7 +37,7 @@ Files, not screens. Claude Code draws on the terminal's alternate screen, so Her
 from: <Caller>
 to: <Target>
 date: YYYY-MM-DD HH:MM
-status: open | answered | needs-principal
+status: open | answered | needs-principal | done
 caller_pane: w1:p3
 ---
 
@@ -52,7 +52,13 @@ caller_pane: w1:p3
 
 The folder is created on demand and is tracked in git. The caller's human session commits it at session end. It is **not** the inbox: `memory/scheduled/` is the scheduler's channel and stays untouched.
 
-At interactive startup (step 17) an agent glances at `peer/` files with `status: answered` or `open` newer than its last session and folds anything substantive into the session. A file stays until the owning agent archives it; keep the folder under ten files.
+At interactive startup (step 17) an agent glances at `peer/` files with `status: answered` or `open` newer than its last session and folds anything substantive into the session.
+
+**Statuses.** `open` (written, no reply yet) → `answered` (reply written) or `needs-principal` (reply written, part of it needs {{PRINCIPAL}}) → `done` (nothing more is owed by anyone). The caller sets `done` once it has used the reply; the target sets `done` on a one-way handover once it has read it (a file that says "no reply owed" starts life as `open` and is `done` after reading). Older files may say `closed` or `complete`: treat them as `done`.
+
+**Stale `open` files.** A normal exchange is answered within the minutes the pane is open, so an `open` file older than a day means the exchange failed or the file was dropped in by hand (a cross-workspace relay, a handover). It is owed work: the target answers it in its next human session, or turns it into a tracker item and sets `done`. A file that already holds a reply but still says `open` just needs its status corrected.
+
+**Archiving.** A file stays in `peer/` while it is `open` or `needs-principal`. Once it is `done`, or `answered` and older than 14 days, the folder's owner moves it to `peer/archive/` (created on demand, tracked in git). Do it whenever `peer/` holds more than ten files, and as part of tracker cleanup (`reference/tracker-cleanup.md`). Archive; never delete — the replies are the record.
 
 ## How `/agents:ask` routes
 

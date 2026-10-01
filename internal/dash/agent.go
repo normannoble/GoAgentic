@@ -115,9 +115,28 @@ func loadAgent(dir, principal string, now time.Time) *Agent {
 		}
 	}
 	if data, err := os.ReadFile(filepath.Join(dir, "memory", "scheduled", "inbox.md")); err == nil {
-		a.InboxUnprocessed = strings.Count(string(data), "UNPROCESSED")
+		a.InboxUnprocessed = countUnprocessed(string(data))
 	}
 	return a
+}
+
+// countUnprocessed counts inbox entry headings whose state is UNPROCESSED
+// ("### 2026-09-02T09:07+08:00 — task — UNPROCESSED"). The file's format
+// header mentions the word in prose and in a "<placeholder>" heading; neither
+// is an entry.
+func countUnprocessed(inbox string) int {
+	n := 0
+	for _, line := range strings.Split(inbox, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "#") || strings.Contains(line, "<") {
+			continue
+		}
+		parts := strings.Split(line, "—")
+		if strings.HasPrefix(strings.TrimSpace(parts[len(parts)-1]), "UNPROCESSED") {
+			n++
+		}
+	}
+	return n
 }
 
 type tracker struct {

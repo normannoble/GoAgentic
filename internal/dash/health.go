@@ -68,7 +68,7 @@ func assessHealth(a *Agent, now time.Time) Health {
 		}
 	}
 	if a.PeerOpen > maxPeerOpen {
-		h.add(Warn, "%d peer files still open or answered (tidy peer/)", a.PeerOpen)
+		h.add(Warn, "%d peer files still open or answered (tracker cleanup archives them)", a.PeerOpen)
 	}
 	// A live agent mid-session is expected to have uncommitted files.
 	if a.Uncommitted > 0 && (a.Live == nil || !a.Live.Running) {
