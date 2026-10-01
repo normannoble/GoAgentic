@@ -135,6 +135,8 @@ Single standing file — the agent's running to-do list. Always current, updated
 - Open table: #, Action, Ticket, Owner, Priority, Due/Target, Status, Since
 - Completed table: #, Action, Ticket, Owner, Completed date
 
+**The Action cell starts with a bold label**: what the item is, in 3–8 words and under 60 characters, then whatever detail it needs: `**Acme contract — MSA + first SOW** — v0.5 review copies with Dario …`. The label names the work, not its state, so it carries no dates or status words (`**Wave 2 partner follow-ups**`, not `**Waiting on replies for wave 2 (09-28)**`). A short item still gets one (`**Review the training proposal** — before it goes to the client`). The label is the item's headline wherever it is shown in short: `goagentic dash`, `/agents:status`, `/agents:next`; without one, tools guess a headline from the cell. Rows without a label still work; add one when you next touch the row (`reference/session-end.md` § Step 2).
+
 The `Ticket` column is optional — contains the issue tracker ID when the action has a corresponding ticket. Its header is the workspace's `ticket-column` frontmatter value (default `Ticket`). When present:
 - At session close, sync status both ways (update tracker state to match action status, and vice versa)
 - During session priority declaration, check linked tickets for state changes since last session

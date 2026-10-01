@@ -21,7 +21,7 @@ Scan the full conversation and identify:
 ### Step 2: Update action tracker
 
 Update `actions.md`:
-- Add new action items to Open
+- Add new action items to Open, each Action cell starting with a bold label (master § actions.md: 3–8 words, under 60 characters, no dates or status words). Give any row you touch a label if it has none
 - Move completed items to Completed with date
 - Update statuses and flag items at risk or overdue. Each status starts with one of the four states (master § actions.md): `Not started`, `In progress`, `Waiting on <who>`, `Parked`; a short note may follow ` — `. Bring any row you touch onto them
 - Rewrite the `Next session:` line under `Last reviewed:` with the focus you would propose next time, up to three items (`Next session: #14 Career sweep → #11 close worktrees`). One line; add it if the tracker has none. {{PRINCIPAL}} reads it from the dashboard without starting you, so make it what you would actually declare.
