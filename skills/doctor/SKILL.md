@@ -45,7 +45,7 @@ Always name the **single biggest file** and its share. That is the fix.
 - ⚠️ more than 8 open P1 rows (count table rows under `### P1` before the next heading).
 - ⚠️ Open contains struck-through rows: the Action cell starts with `~~` (a done item left in Open). Strikethrough inside a live item's text (`~~algorithm HTML~~ (received) + SQL source`) is fine.
 - ⚠️ Completed table has rows dated more than 30 days ago and `actions-archive.md` exists (they should be archived); ⚠️ `actions-archive.md` missing.
-- ℹ️ Open rows whose Status does not start with `Not started`, `In progress`, `Waiting on` or `Parked` (master § actions.md): give the count and share, e.g. `12 of 30 statuses free-text`. No fix needed beyond the next full tracker pass.
+- ⚠️ Open rows whose Status does not start with `Not started`, `In progress`, `Waiting on` or `Parked` (master § actions.md; case does not matter): give the count and the item numbers, e.g. `3 of 30 statuses free-text (#4, #9, #12)`. A free-text status hides who the item waits on, so `goagentic dash` cannot list it under the right person. Fix: move those rows onto the four states at the next wrap (`reference/session-end.md` § Step 2).
 - ⚠️ any row whose Status cell starts `Waiting on` (or says blocked / gated / awaiting) for more than 30 days (compare the row's date if it has one; otherwise skip).
 
 ### C. Memory
