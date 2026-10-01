@@ -641,3 +641,54 @@ func TestUnwrapped(t *testing.T) {
 		t.Error("has must match the exact path")
 	}
 }
+
+func TestFleet(t *testing.T) {
+	parent := t.TempDir()
+	for _, name := range []string{"Beta", "alpha"} {
+		ws := filepath.Join(parent, name)
+		write(t, filepath.Join(ws, "agents/CONVENTIONS.md"), "---\nprincipal: Norman Noble\n---\n")
+		write(t, filepath.Join(ws, "agents/Sigrid/context.md"), "---\ntitle: Lead\n---\n")
+		write(t, filepath.Join(ws, "agents/Sigrid/actions.md"), sectionedTracker)
+	}
+	write(t, filepath.Join(parent, "notes/readme.md"), "not a workspace")
+	if err := os.Symlink(filepath.Join(parent, "Beta"), filepath.Join(parent, "OldBeta")); err != nil {
+		t.Fatal(err)
+	}
+
+	dirs := FleetDirs(parent)
+	if len(dirs) != 2 || filepath.Base(dirs[0]) != "alpha" || filepath.Base(dirs[1]) != "Beta" {
+		t.Fatalf("fleet dirs = %v (symlinks and non-workspaces skipped, sorted ignoring case)", dirs)
+	}
+
+	calls := 0
+	f, err := ScanFleet(parent, Options{Now: now, Herdr: func() ([]LivePane, error) {
+		calls++
+		return nil, nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Errorf("herdr asked %d times, want once per fleet scan", calls)
+	}
+	one := f.Workspaces[0].Counts()
+	if all := f.Counts(); all.Agents != 2 || all.ForYou != 2*one.ForYou || all.Blocked != 2*one.Blocked {
+		t.Errorf("fleet counts = %+v, workspace = %+v", all, one)
+	}
+
+	var buf bytes.Buffer
+	WriteFleet(&buf, f, 120, NewStyles(true))
+	out := buf.String()
+	for _, want := range []string{"FLEET", "WORKSPACE", "alpha", "Beta", "NEEDS YOU"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("fleet output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "OldBeta") {
+		t.Error("a symlinked workspace must not be listed twice")
+	}
+
+	if _, err := ScanFleet(filepath.Join(parent, "notes"), Options{Now: now}); err == nil {
+		t.Error("a directory with no workspaces must be an error")
+	}
+}

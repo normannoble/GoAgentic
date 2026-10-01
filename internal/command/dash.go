@@ -21,6 +21,7 @@ type dashFlags struct {
 	sidebar    bool
 	printRoot  bool
 	view       string
+	fleet      bool
 	noColor    bool
 	width      int
 }
@@ -52,6 +53,7 @@ agents/CONVENTIONS.md, or the one given with --root.`,
 	// invocations still run.
 	cmd.Flags().StringVar(&flags.view, "view", "table", "Ignored: the table is the only layout.")
 	_ = cmd.Flags().MarkDeprecated("view", "the table is the only layout")
+	cmd.Flags().BoolVar(&flags.fleet, "fleet", false, "Show every workspace under ~/agents (or --root) as one row each; enter opens one.")
 	cmd.Flags().BoolVar(&flags.printRoot, "print-root", false, "Print the workspace directory the dashboard would show and exit.")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "Disable color.")
 	cmd.Flags().IntVar(&flags.width, "width", 0, "Output width for --once (default: terminal width, else 120).")
@@ -62,6 +64,9 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 	if flags.sidebar {
 		_, err := dash.ReportSidebar()
 		return err
+	}
+	if flags.fleet {
+		return runFleet(cmd, flags)
 	}
 	root, err := dashRoot(flags.root)
 	if err != nil {
@@ -118,6 +123,46 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 		return nil
 	}
 	return dash.Run(cmd.Context(), scan, cmd.InOrStdin(), out, noColor, flags.all)
+}
+
+// runFleet shows every workspace under the fleet directory: --root when
+// given, else ~/agents.
+func runFleet(cmd *cobra.Command, flags *dashFlags) error {
+	root := flags.root
+	if root == "" {
+		root = dash.DefaultFleetRoot()
+	}
+	cache := dash.NewTranscriptCache()
+	opts := func(all bool) dash.Options {
+		return dash.Options{IncludeRetired: all, Herdr: dash.HerdrPanes, Transcripts: dash.DefaultTranscripts(), Cache: cache}
+	}
+	scan := func(all bool) (*dash.Fleet, error) { return dash.ScanFleet(root, opts(all)) }
+	wsScan := func(dir string) dash.ScanFunc {
+		return func(all bool) (*dash.Workspace, error) { return dash.Scan(dir, opts(all)) }
+	}
+
+	out := cmd.OutOrStdout()
+	outFile, isFile := out.(*os.File)
+	tty := isFile && term.IsTerminal(int(outFile.Fd()))
+	noColor := flags.noColor || os.Getenv("NO_COLOR") != "" || !tty
+	if flags.once || !tty {
+		f, err := scan(flags.all)
+		if err != nil {
+			return err
+		}
+		width := flags.width
+		if width <= 0 {
+			width = 120
+			if tty {
+				if w, _, err := term.GetSize(int(outFile.Fd())); err == nil && w > 0 {
+					width = w
+				}
+			}
+		}
+		dash.WriteFleet(out, f, width, dash.NewStyles(noColor))
+		return nil
+	}
+	return dash.RunFleet(cmd.Context(), scan, wsScan, cmd.InOrStdin(), out, noColor, flags.all)
 }
 
 // dashRoot picks the workspace: --root when given; else, under a Herdr

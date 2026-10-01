@@ -336,7 +336,9 @@ The installer puts `goagentic` in `~/.local/bin`. With Herdr, `goagentic herdr i
 
 **Keys:** `↑`/`↓` select an agent. `enter` opens it: it focuses the agent's pane if it is running, starts it in its old pane, or starts it in a new tab. It never starts a second copy. `→` shows full detail, `r` refreshes, `a` includes retired agents, `q` quits.
 
-**Scripts:** `--once` prints a snapshot, `--json` the data, `--summary` one line. The Herdr plugin also writes each Space's summary to a `$agents` sidebar token. Plugin details: `integrations/herdr/README.md`.
+**Fleet:** `goagentic dash --fleet` shows every workspace under `~/agents` (or `--root <dir>`) as one row: agents, live, for you, overdue, blocked P1s, health, and who needs you. `enter` opens that workspace's dashboard; `esc` comes back. Symlinked workspace names are skipped, so a renamed workspace is listed once.
+
+**Scripts:** `--once` prints a snapshot (also with `--fleet`), `--json` the data, `--summary` one line. The Herdr plugin also writes each Space's summary to a `$agents` sidebar token. Plugin details: `integrations/herdr/README.md`.
 
 ### Memory
 

@@ -60,6 +60,8 @@ type model struct {
 	// quitAfterLaunch closes the dashboard once an agent opens: set when it
 	// runs as the Herdr quick-look overlay, so you land in the agent.
 	quitAfterLaunch bool
+	// inFleet: opened from the fleet view, where esc goes back to it.
+	inFleet bool
 }
 
 func (m *model) Init() tea.Cmd { return tick() }
@@ -204,7 +206,11 @@ func (m *model) render() string {
 		}
 		return msg
 	}
-	footer := m.st.Dim.Render("↑↓ select · enter open · → detail · r refresh · q quit")
+	quit := "q quit"
+	if m.inFleet {
+		quit = "esc fleet"
+	}
+	footer := m.st.Dim.Render("↑↓ select · enter open · → detail · r refresh · " + quit)
 	if m.full {
 		footer = m.st.Dim.Render("↑↓ scroll · enter open · esc back · q quit")
 	}
