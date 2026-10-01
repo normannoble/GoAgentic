@@ -334,7 +334,7 @@ The installer puts `goagentic` in `~/.local/bin`. With Herdr, `goagentic herdr i
 
 **Colours:** a dot before an agent's name says whether it needs you. Red means a problem: an overdue item, a blocked P1, or a health failure. Amber means something is waiting on you. Green means the agent is working. No dot means nothing to act on.
 
-**Keys:** `↑`/`↓` select an agent. `enter` opens it: it focuses the agent's pane if it is running, starts it in its old pane, or starts it in a new tab. It never starts a second copy. `→` shows full detail, `v` switches to a tile layout, `r` refreshes, `a` includes retired agents, `q` quits.
+**Keys:** `↑`/`↓` select an agent. `enter` opens it: it focuses the agent's pane if it is running, starts it in its old pane, or starts it in a new tab. It never starts a second copy. `→` shows full detail, `r` refreshes, `a` includes retired agents, `q` quits.
 
 **Scripts:** `--once` prints a snapshot, `--json` the data, `--summary` one line. The Herdr plugin also writes each Space's summary to a `$agents` sidebar token. Plugin details: `integrations/herdr/README.md`.
 

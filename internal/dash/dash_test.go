@@ -391,7 +391,7 @@ func TestSnapshotAndJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	WriteSnapshot(&buf, ws, 120, ViewTable, true, NewStyles(true))
+	WriteSnapshot(&buf, ws, 120, true, NewStyles(true))
 	out := buf.String()
 	for _, want := range []string{
 		"✋ 3 for you", "● Sigrid", "● Varro", "Waiting on Norman:", "Sigrid #5 Tidy memory and links", "Sigrid #6 Sign the contract",
@@ -475,7 +475,7 @@ func TestTranscriptStarts(t *testing.T) {
 		t.Error("peer sessions and non-jsonl files must not count")
 	}
 	// A second pass reuses the cache and gives the same answer.
-	if again := c.Starts(dir); !again["sigrid"].Started.Equal(starts["sigrid"].Started) || len(again["sigrid"].All) != 2 {
+	if again := c.Starts(dir); !again["sigrid"].Started.Equal(starts["sigrid"].Started) {
 		t.Error("cached result differs")
 	}
 	if got := projectDirName("/home/n/agents/Go.Agentic"); got != "-home-n-agents-Go-Agentic" {
@@ -597,54 +597,7 @@ esac
 	}
 }
 
-func TestTileView(t *testing.T) {
-	ws, err := Scan(fixture(t), Options{Now: now})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	WriteSnapshot(&buf, ws, 80, ViewTiles, false, NewStyles(true))
-	out := buf.String()
-	for _, want := range []string{"✋ 3 for you", "╭─ Sigrid", "╭─ Varro", "#3 ship the thing", "nothing open", "✋3", "⚠"} {
-		if !strings.Contains(out, want) {
-			t.Errorf("tiles lack %q:\n%s", want, out)
-		}
-	}
-	// Two 38-wide tiles fit side by side in 80 columns, each line exactly
-	// the same width.
-	lines := strings.Split(out, "\n")
-	if TileColumns(80) != 2 {
-		t.Errorf("columns at 80 = %d", TileColumns(80))
-	}
-	for _, l := range lines {
-		if n := ansiWidth(l); n > 80 {
-			t.Errorf("line wider than 80 (%d): %q", n, l)
-		}
-	}
-	grid, _ := TileGrid(ws, 80, 0, NewStyles(true))
-	if len(grid) != tileHeight {
-		t.Fatalf("grid rows = %d, want one row of tiles", len(grid))
-	}
-	w := ansiWidth(grid[0])
-	for _, l := range grid {
-		if ansiWidth(l) != w {
-			t.Errorf("ragged tile row: %q", l)
-		}
-	}
-	if !strings.Contains(grid[0], "┏") {
-		t.Error("selected tile should use the heavy border")
-	}
-}
-
-func TestActivityAndDue(t *testing.T) {
-	a := &Agent{
-		starts:   []time.Time{now.Add(-time.Hour), now.Add(-time.Hour * 2), now.Add(-48 * time.Hour)},
-		Sessions: []Session{{Date: now.AddDate(0, 0, -5)}, {Date: now.AddDate(0, 0, -30)}},
-	}
-	got := activity(a, now)
-	if len(got) != activityDays || got[11] != 2 || got[9] != 1 || got[6] != 1 || got[0] != 0 {
-		t.Errorf("activity = %v", got)
-	}
+func TestDue(t *testing.T) {
 	tr := parseActions("## Open\n\n| # | Action | Owner | Priority | Due/Target | Status |\n|---|---|---|---|---|---|\n" +
 		"| 1 | Late | A | P1 | 2026-09-01 | Open |\n| 2 | Later | A | P1 | 2026-12-01 | Open |\n| 3 | Parked late | A | P1 | 2026-09-01 | Parked |\n| 4 | Vague | A | P1 | When quiet | Open |\n")
 	ag := &Agent{Open: tr.open}

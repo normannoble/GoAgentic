@@ -44,9 +44,6 @@ type Agent struct {
 	LastStarted time.Time
 	LastActive  time.Time
 	Live        *LivePane
-	// Activity counts sessions per day, oldest first, ending today.
-	Activity []int
-	starts   []time.Time
 
 	Health Health
 }
@@ -640,43 +637,6 @@ func listFiles(dir, pattern string) []FileInfo {
 			continue
 		}
 		out = append(out, FileInfo{Name: info.Name(), Size: info.Size()})
-	}
-	return out
-}
-
-// activityDays is how many days the sparkline covers.
-const activityDays = 12
-
-// activity counts, per day for the last activityDays days, how many times the
-// agent was started (from transcripts), or on days with no transcript data,
-// how many session logs it wrote.
-func activity(a *Agent, now time.Time) []int {
-	day := func(t time.Time) int {
-		t = t.In(now.Location())
-		d0 := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		d1 := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, now.Location())
-		return activityDays - 1 - int(d0.Sub(d1).Hours()/24+0.5)
-	}
-	starts := make([]int, activityDays)
-	for _, t := range a.starts {
-		if i := day(t); i >= 0 && i < activityDays {
-			starts[i]++
-		}
-	}
-	out := make([]int, activityDays)
-	for _, s := range a.Sessions {
-		if s.Date.IsZero() {
-			continue
-		}
-		d := time.Date(s.Date.Year(), s.Date.Month(), s.Date.Day(), 12, 0, 0, 0, now.Location())
-		if i := day(d); i >= 0 && i < activityDays {
-			out[i]++
-		}
-	}
-	for i := range out {
-		if starts[i] > 0 {
-			out[i] = starts[i]
-		}
 	}
 	return out
 }

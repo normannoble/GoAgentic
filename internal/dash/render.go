@@ -232,7 +232,7 @@ func TableRow(ws *Workspace, a *Agent, width int, selected bool, st Styles) stri
 }
 
 // attentionMark is a coloured dot before the agent's name, the same colour
-// logic as the tile borders: red for a problem, amber when something waits on
+// logic as agentTone: red for a problem, amber when something waits on
 // the principal, green while it works. Nothing to act on means no mark, so
 // the eye goes to the rows that matter.
 func attentionMark(ws *Workspace, a *Agent, st Styles) string {
@@ -416,28 +416,8 @@ func wrap(text string, w, max int) []string {
 	return lines
 }
 
-// View names the dashboard layouts.
-const (
-	ViewTiles = "tiles"
-	ViewTable = "table"
-)
-
 // WriteSnapshot prints the whole dashboard once, for --once.
-func WriteSnapshot(w io.Writer, ws *Workspace, width int, view string, detail bool, st Styles) {
-	if view == ViewTiles && len(ws.Agents) > 0 {
-		for _, l := range writeTiles(ws, width, st) {
-			fmt.Fprintln(w, strings.TrimRight(l, " "))
-		}
-		if detail {
-			for _, a := range ws.Agents {
-				fmt.Fprintln(w)
-				for _, l := range Detail(ws, a, width, 0, st) {
-					fmt.Fprintln(w, l)
-				}
-			}
-		}
-		return
-	}
+func WriteSnapshot(w io.Writer, ws *Workspace, width int, detail bool, st Styles) {
 	fmt.Fprintln(w, CountHeader(ws, width, st))
 	if waiting := WaitingLines(ws); len(waiting) > 0 {
 		fmt.Fprintln(w, st.Warn.Render("Waiting on "+firstName(ws.Principal)+":"))
