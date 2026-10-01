@@ -37,6 +37,9 @@ type Agent struct {
 	PeerOpen         int
 	InboxUnprocessed int
 	Uncommitted      int
+	// Unwrapped: the tracker changed after the newest session log and was
+	// never committed, so a session ended without a wrap.
+	Unwrapped bool
 
 	LastStarted time.Time
 	LastActive  time.Time

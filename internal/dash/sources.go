@@ -236,6 +236,37 @@ func DefaultTranscripts() string {
 // dirtyPaths are uncommitted paths relative to the workspace root.
 type dirtyPaths []string
 
+func (d dirtyPaths) has(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	for _, p := range d {
+		if p == rel {
+			return true
+		}
+	}
+	return false
+}
+
+// unwrapped reports a session that ended without a wrap: the tracker has
+// uncommitted changes made after the newest session log. A wrap writes the
+// log after the tracker and commits both, so this only happens when a
+// session was closed without one.
+func unwrapped(dir string, trackerDirty bool) bool {
+	if !trackerDirty {
+		return false
+	}
+	st, err := os.Stat(filepath.Join(dir, "actions.md"))
+	if err != nil {
+		return false
+	}
+	var newest time.Time
+	for _, f := range listFiles(filepath.Join(dir, "memory", "sessions"), "*.md") {
+		if info, err := os.Stat(filepath.Join(dir, "memory", "sessions", f.Name)); err == nil && info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+	}
+	return st.ModTime().After(newest)
+}
+
 func (d dirtyPaths) under(rel string) int {
 	prefix := filepath.ToSlash(rel) + "/"
 	n := 0

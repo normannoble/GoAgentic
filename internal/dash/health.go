@@ -72,7 +72,11 @@ func assessHealth(a *Agent, now time.Time) Health {
 	}
 	// A live agent mid-session is expected to have uncommitted files.
 	if a.Uncommitted > 0 && (a.Live == nil || !a.Live.Running) {
-		h.add(Warn, "%d uncommitted file(s) with no session running", a.Uncommitted)
+		if a.Unwrapped {
+			h.add(Warn, "a session ended without a wrap (tracker changed after the last session log) — start it and wrap")
+		} else {
+			h.add(Warn, "%d uncommitted file(s) with no session running", a.Uncommitted)
+		}
 	}
 	return h
 }

@@ -103,6 +103,7 @@ func Scan(root string, opts Options) (*Workspace, error) {
 		}
 		rel, _ := filepath.Rel(root, dir)
 		a.Uncommitted = dirty.under(rel)
+		a.Unwrapped = unwrapped(dir, dirty.has(filepath.Join(rel, "actions.md")))
 		ws.Agents = append(ws.Agents, a)
 	}
 

@@ -657,3 +657,34 @@ func TestActivityAndDue(t *testing.T) {
 }
 
 func ansiWidth(s string) int { return ansi.StringWidth(s) }
+
+func TestUnwrapped(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "memory/sessions/2026-09-27-s.md"), "# s\n")
+	write(t, filepath.Join(dir, "actions.md"), "Last reviewed: 2026-09-27\n")
+	old := time.Date(2026, 9, 27, 10, 0, 0, 0, time.UTC)
+	later := old.Add(time.Hour)
+	set := func(p string, at time.Time) {
+		if err := os.Chtimes(filepath.Join(dir, p), at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	set("memory/sessions/2026-09-27-s.md", old)
+	set("actions.md", later)
+	if !unwrapped(dir, true) {
+		t.Error("dirty tracker newer than the last session log must read as unwrapped")
+	}
+	if unwrapped(dir, false) {
+		t.Error("a committed tracker is never unwrapped")
+	}
+
+	set("memory/sessions/2026-09-27-s.md", later.Add(time.Minute))
+	if unwrapped(dir, true) {
+		t.Error("a session log written after the tracker is a wrap, not unwrapped")
+	}
+
+	if !(dirtyPaths{"agents/Sigrid/actions.md"}).has(filepath.Join("agents/Sigrid", "actions.md")) {
+		t.Error("has must match the exact path")
+	}
+}
