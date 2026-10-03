@@ -17,7 +17,7 @@ var HerdrPlugin embed.FS
 // Version is the public installer version. Release builds replace it with the
 // matching tag through -ldflags, while tests keep the repository default in
 // sync with install.sh.
-var Version = "0.2.11"
+var Version = "0.2.12"
 
 // SourceCommit is populated for release binaries through -ldflags. A caller
 // may still override the manifest value with AGENT_FRAMEWORK_SOURCE_COMMIT.
