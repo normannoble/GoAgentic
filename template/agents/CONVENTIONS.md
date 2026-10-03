@@ -273,7 +273,7 @@ The router parses the agent name, finds the agent directory under `agents/<name>
 | Gemini CLI | `/agents:start <name>` | `/agents:<cmd>` | `.gemini/commands/agents/<cmd>.toml` (+ the `.agents/skills/` wrapper) |
 | OpenCode | `/agents-start <name>` | `/agents-<cmd>` | `.opencode/commands/agents-<cmd>.md` (+ the `.agents/skills/` wrapper) |
 | Pi | `/agents-start <name>` | `/agents-<cmd>` | `.pi/prompts/agents-<cmd>.md` (+ the `.agents/skills/` wrapper) |
-| Cursor CLI | `/agents-start <name>` | `/agents-<cmd>` | `.cursor/commands/agents-<cmd>.md` (+ the `.agents/skills/` wrapper) |
+| Cursor CLI | `/agents-start <name>` | `/agents-<cmd>` | `.agents/skills/agents-<cmd>/SKILL.md` (Cursor lists skills as slash commands) |
 
 The agent files, this document, and the reference files are the same on every harness. Two things are Claude Code only: the gap-notice hook (§ Stale Sessions) and the `${CLAUDE_SESSION_ID}` session ID (`reference/session-end.md` § Step 4 has the per-harness form).
 

@@ -11,8 +11,8 @@
 #   gemini      .gemini/commands/agents/<cmd>.toml       so /agents:<cmd> works, same names as Claude
 #   opencode    .opencode/commands/agents-<cmd>.md       so /agents-<cmd> works
 #   pi          .pi/prompts/agents-<cmd>.md              so /agents-<cmd> works (user: ~/.pi/agent/prompts)
-#   cursor      .cursor/commands/agents-<cmd>.md         so /agents-<cmd> works (user: ~/.cursor/commands)
 #   codex       (skills only; Codex invokes them as $agents-<cmd>)
+#   cursor      (skills only; Cursor lists them as /agents-<cmd>, so native commands would duplicate them)
 #   instruction file (project scope only, if it has no "## Agents" heading):
 #               AGENTS.md (codex, opencode, pi, cursor) or GEMINI.md (gemini)
 #
@@ -129,13 +129,6 @@ description: $(description_of "$s")
 ---
 
 $(wrapper_body "$s" "The user's arguments are: \$@ (use them wherever the skill says ARGUMENTS)." "$NATIVE_CMDS")"
-    done ;;
-  cursor)
-    # Cursor commands are plain markdown with no argument placeholder: the text the
-    # user types after the command arrives with the prompt.
-    if [[ $SCOPE == user ]]; then CMD_DIR="$HOME/.cursor/commands"; else CMD_DIR="$WORKSPACE/.cursor/commands"; fi
-    for s in "${SKILLS[@]}"; do
-      write "$CMD_DIR/agents-$s.md" "$(wrapper_body "$s" "The user's arguments are the text after \`/agents-$s\` in their message. Treat that text as \`\$ARGUMENTS\`." "$NATIVE_CMDS")"
     done ;;
 esac
 

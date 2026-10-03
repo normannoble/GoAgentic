@@ -82,7 +82,7 @@ bash harness/install.sh gemini   /path/to/workspace --user          # user-level
 bash harness/install.sh opencode /path/to/workspace --set-default   # ticks and peer panes use this CLI too
 ```
 
-It writes thin wrapper skills into `.agents/skills/agents-<cmd>/` (the Agent Skills folder they all read), native slash commands where the harness has them (`.gemini/commands/agents/*.toml`, `.opencode/commands/agents-*.md`, `.pi/prompts/agents-*.md`, `.cursor/commands/agents-*.md`), and the `## Agents` block in `AGENTS.md` or `GEMINI.md`. Each wrapper points at this checkout, so `git pull` updates every harness at once. Nothing under `.claude/` is touched; Claude Code keeps using the plugin.
+It writes thin wrapper skills into `.agents/skills/agents-<cmd>/` (the Agent Skills folder they all read), native slash commands where the harness has them (`.gemini/commands/agents/*.toml`, `.opencode/commands/agents-*.md`, `.pi/prompts/agents-*.md`; Codex and Cursor use the skills directly), and the `## Agents` block in `AGENTS.md` or `GEMINI.md`. Each wrapper points at this checkout, so `git pull` updates every harness at once. Nothing under `.claude/` is touched; Claude Code keeps using the plugin.
 
 | Harness | Start an agent | Any command |
 |---------|----------------|-------------|
@@ -104,7 +104,7 @@ harness: opencode
 model: openrouter/qwen/qwen3-coder   # opencode and pi: <provider>/<model id>
 ```
 
-[OpenRouter](https://openrouter.ai) is a model provider, not a harness. Use it through OpenCode or Pi: set `OPENROUTER_API_KEY` and a `model: openrouter/<id>`. Cursor CLI runs only the models in Cursor's own list (`cursor-agent --list-models`).
+[OpenRouter](https://openrouter.ai) is a model provider, not a harness. Use it through OpenCode or Pi: set `OPENROUTER_API_KEY` and a `model: openrouter/<id>`. Cursor CLI runs only the models in Cursor's own list (`cursor-agent --list-models`); a free Cursor plan allows only `model: auto`.
 
 ### Install by copying (the installer)
 
