@@ -18,11 +18,19 @@ func startCommand(harness, name string) string {
 	switch harness {
 	case "codex":
 		return "$agents-start " + name
-	case "opencode":
+	case "opencode", "pi", "cursor":
 		return "/agents-start " + name
 	default: // claude, gemini
 		return "/agents:start " + name
 	}
+}
+
+// executable is the harness's CLI command, where it differs from its name.
+func executable(harness string) string {
+	if harness == "cursor" {
+		return "cursor-agent"
+	}
+	return harness
 }
 
 // harnessOf is the CLI an agent runs under: its own context.md harness:,
@@ -30,11 +38,20 @@ func startCommand(harness, name string) string {
 func harnessOf(ws *Workspace, a *Agent) string {
 	for _, h := range []string{a.Harness, ws.Harness} {
 		switch h {
-		case "claude", "codex", "gemini", "opencode":
+		case "claude", "codex", "gemini", "opencode", "pi", "cursor":
 			return h
 		}
 	}
 	return "claude"
+}
+
+// modelOf is the model an agent runs on: its own context.md model:, else the
+// workspace's, else none (the CLI's default).
+func modelOf(ws *Workspace, a *Agent) string {
+	if a.Model != "" {
+		return a.Model
+	}
+	return ws.Model
 }
 
 // LaunchStep is one Herdr CLI call a launch makes.
@@ -55,8 +72,17 @@ type LaunchStep struct {
 func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string, steps []LaunchStep) {
 	name := strings.ToLower(a.Name)
 	harness := harnessOf(ws, a)
+	var agentArgs []string
+	if m := modelOf(ws, a); m != "" {
+		agentArgs = []string{"--model", m}
+	}
+	agentArgs = append(agentArgs, startCommand(harness, name))
 	start := func(pane string) []string {
-		return []string{"agent", "start", name, "--kind", harness, "--pane", pane, "--", startCommand(harness, name)}
+		return append([]string{"agent", "start", name, "--kind", harness, "--pane", pane, "--"}, agentArgs...)
+	}
+	var typed []string
+	for _, arg := range agentArgs {
+		typed = append(typed, shellQuote(arg))
 	}
 	switch {
 	case a.Live != nil && a.Live.Running:
@@ -66,7 +92,7 @@ func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string,
 	case a.Live != nil:
 		return "started " + a.Name + " in its pane", []LaunchStep{
 			{Args: start(a.Live.PaneID), Fallback: []string{"pane", "run", a.Live.PaneID,
-				harness + " " + shellQuote(startCommand(harness, name))}},
+				executable(harness) + " " + strings.Join(typed, " ")}},
 			{Args: []string{"agent", "focus", a.Live.PaneID}},
 		}
 	default:

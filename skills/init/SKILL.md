@@ -23,7 +23,7 @@ If `agents/CONVENTIONS.md` already exists and has `extends:` in its frontmatter,
 
 Resolve the plugin's template folder: `ls "${CLAUDE_PLUGIN_ROOT}/template"`. If the variable is empty, use `$AGENT_FRAMEWORK_ROOT/template` or the framework root a wrapper skill named (another harness); else glob `~/.claude/plugins/cache/*/agents/*/template` and take the highest version. Call this `TEMPLATE`.
 
-Note the harness you are running in: `claude` (Claude Code, the default), `codex`, `gemini`, or `opencode`. It decides two things below: the `harness:` frontmatter value and which instruction file gets the `## Agents` block (`CLAUDE.md`, `AGENTS.md` for codex and opencode, `GEMINI.md` for gemini).
+Note the harness you are running in: `claude` (Claude Code, the default), `codex`, `gemini`, `opencode`, `pi`, or `cursor`. It decides two things below: the `harness:` frontmatter value and which instruction file gets the `## Agents` block (`CLAUDE.md`, `AGENTS.md` for codex, opencode, pi and cursor, `GEMINI.md` for gemini).
 
 ## 2. Ask three things (skip any given as arguments)
 
@@ -51,7 +51,7 @@ reserved: []
 ticket-column: Ticket
 inbound: none
 scheduler: none   # launchd | cron once /agents:schedule install has run
-harness: <claude | codex | gemini | opencode — the CLI that runs ticks and peer panes; omit the line for claude>
+harness: <claude | codex | gemini | opencode | pi | cursor — the CLI that runs ticks and peer panes; omit the line for claude>
 ---
 
 # Agent Conventions — <repo folder name>
@@ -71,7 +71,7 @@ No workspace-specific overrides yet. The master applies in full.
 
 **Workspace layout** (if chosen): `mkdir -p thinking work/projects work/operations knowledge/systems knowledge/people knowledge/processes knowledge/company outputs`. Copy `TEMPLATE/CONVENTIONS.md` to `CONVENTIONS.md` and `TEMPLATE/../PHILOSOPHY.md` to `PHILOSOPHY.md` only if each is missing. Put an empty `.gitkeep` in each new empty folder.
 
-**Instruction file** (`CLAUDE.md` in Claude Code; `AGENTS.md` in Codex and OpenCode; `GEMINI.md` in Gemini CLI): if it exists and has no `## Agents` heading, append this block. If it does not exist, create it with just this block. On a non-Claude harness spell the commands the way that harness does (`$agents-start` in Codex, `/agents-start` in OpenCode).
+**Instruction file** (`CLAUDE.md` in Claude Code; `AGENTS.md` in Codex, OpenCode, Pi and Cursor; `GEMINI.md` in Gemini CLI): if it exists and has no `## Agents` heading, append this block. If it does not exist, create it with just this block. On a non-Claude harness spell the commands the way that harness does (`$agents-start` in Codex, `/agents-start` in OpenCode, Pi and Cursor).
 
 ```markdown
 ## Agents

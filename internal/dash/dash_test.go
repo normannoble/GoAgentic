@@ -540,6 +540,24 @@ func TestLaunchPlan(t *testing.T) {
 	if got := join(steps); got != "tab create --cwd /ws --label Varro --focus --workspace w1 | agent start varro --kind codex --pane  -- $agents-start varro" || !steps[0].NewPane {
 		t.Errorf("no pane: %s", got)
 	}
+
+	// Cursor with a model: the model goes before the start command, and the
+	// fallback types the cursor-agent executable.
+	cur := &Agent{Name: "Ada", Harness: "cursor", Model: "gpt-5", Live: &LivePane{PaneID: "w1:p4"}}
+	_, steps = LaunchPlan(ws, cur, "w1")
+	if got := join(steps); got != "agent start ada --kind cursor --pane w1:p4 -- --model gpt-5 /agents-start ada | agent focus w1:p4" {
+		t.Errorf("cursor: %s", got)
+	}
+	if got := strings.Join(steps[0].Fallback, " "); got != "pane run w1:p4 cursor-agent '--model' 'gpt-5' '/agents-start ada'" {
+		t.Errorf("cursor fallback: %s", got)
+	}
+
+	// Pi, model from the workspace.
+	piWS := &Workspace{Root: "/ws", Harness: "pi", Model: "openrouter/qwen/qwen3-coder"}
+	_, steps = LaunchPlan(piWS, &Agent{Name: "Bo", Live: &LivePane{PaneID: "w1:p5"}}, "w1")
+	if got := join(steps); got != "agent start bo --kind pi --pane w1:p5 -- --model openrouter/qwen/qwen3-coder /agents-start bo | agent focus w1:p5" {
+		t.Errorf("pi: %s", got)
+	}
 }
 
 func TestLaunchRunsHerdr(t *testing.T) {

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Install the agents framework commands into a non-Claude coding-agent CLI.
 #
-#   bash harness/install.sh <codex|gemini|opencode> [workspace] [--user] [--set-default]
+#   bash harness/install.sh <codex|gemini|opencode|pi|cursor> [workspace] [--user] [--set-default]
 #
 # What it writes (project scope by default, inside <workspace>; --user writes the
 # user-level equivalents so every repo gets them):
 #
-#   all three   .agents/skills/agents-<cmd>/SKILL.md     one thin wrapper per framework skill
-#               (the Agent Skills standard folder; Codex, Gemini CLI and OpenCode all read it)
+#   all         .agents/skills/agents-<cmd>/SKILL.md     one thin wrapper per framework skill
+#               (the Agent Skills standard folder; every harness here reads it)
 #   gemini      .gemini/commands/agents/<cmd>.toml       so /agents:<cmd> works, same names as Claude
 #   opencode    .opencode/commands/agents-<cmd>.md       so /agents-<cmd> works
+#   pi          .pi/prompts/agents-<cmd>.md              so /agents-<cmd> works (user: ~/.pi/agent/prompts)
+#   cursor      .cursor/commands/agents-<cmd>.md         so /agents-<cmd> works (user: ~/.cursor/commands)
 #   codex       (skills only; Codex invokes them as $agents-<cmd>)
 #   instruction file (project scope only, if it has no "## Agents" heading):
-#               AGENTS.md (codex, opencode) or GEMINI.md (gemini)
+#               AGENTS.md (codex, opencode, pi, cursor) or GEMINI.md (gemini)
 #
 # The wrappers do not copy the skills. Each one names this checkout as the
 # framework root and tells the model to read the real SKILL.md there. Update the
@@ -28,7 +30,7 @@ usage() { sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 HARNESS="${1:-}"
 [[ -z "$HARNESS" || "$HARNESS" == "-h" || "$HARNESS" == "--help" ]] && usage 0
-case "$HARNESS" in codex|gemini|opencode) ;; claude) echo "claude uses the plugin: /plugin install agents@normannoble" >&2; exit 1 ;; *) echo "unknown harness: $HARNESS" >&2; usage 1 ;; esac
+case "$HARNESS" in codex|gemini|opencode|pi|cursor) ;; claude) echo "claude uses the plugin: /plugin install agents@normannoble" >&2; exit 1 ;; *) echo "unknown harness: $HARNESS" >&2; usage 1 ;; esac
 shift
 
 WORKSPACE="$PWD"
@@ -53,7 +55,7 @@ SKILLS=(help init new start wrap close list status next doctor harness ask sched
 case "$HARNESS" in
   codex)    START='$agents-start'; PREFIX='$agents-' ;;
   gemini)   START='/agents:start'; PREFIX='/agents:' ;;
-  opencode) START='/agents-start'; PREFIX='/agents-' ;;
+  opencode|pi|cursor) START='/agents-start'; PREFIX='/agents-' ;;
 esac
 
 description_of() {  # first `description:` line of a SKILL.md frontmatter
@@ -76,8 +78,8 @@ Read \`$ROOT/skills/$1/SKILL.md\` and follow it exactly, as if you were that com
 - Other framework commands it mentions as \`/agents:<cmd>\` are ${3:-$SHARED_CMDS}.
 BODY
 }
-# .agents/skills is read by all three harnesses, so its wrappers must not name one.
-SHARED_CMDS='`$agents-<cmd>` in Codex, `/agents:<cmd>` in Gemini CLI, `/agents-<cmd>` in OpenCode'
+# .agents/skills is read by every harness, so its wrappers must not name one.
+SHARED_CMDS='`$agents-<cmd>` in Codex, `/agents:<cmd>` in Gemini CLI, `/agents-<cmd>` in OpenCode, Pi and Cursor'
 NATIVE_CMDS="\`${PREFIX}<cmd>\` here"
 
 written=()
@@ -118,6 +120,22 @@ description: $(description_of "$s")
 ---
 
 $(wrapper_body "$s" "\`\$ARGUMENTS\` is: \$ARGUMENTS" "$NATIVE_CMDS")"
+    done ;;
+  pi)
+    if [[ $SCOPE == user ]]; then CMD_DIR="$HOME/.pi/agent/prompts"; else CMD_DIR="$WORKSPACE/.pi/prompts"; fi
+    for s in "${SKILLS[@]}"; do
+      write "$CMD_DIR/agents-$s.md" "---
+description: $(description_of "$s")
+---
+
+$(wrapper_body "$s" "The user's arguments are: \$@ (use them wherever the skill says ARGUMENTS)." "$NATIVE_CMDS")"
+    done ;;
+  cursor)
+    # Cursor commands are plain markdown with no argument placeholder: the text the
+    # user types after the command arrives with the prompt.
+    if [[ $SCOPE == user ]]; then CMD_DIR="$HOME/.cursor/commands"; else CMD_DIR="$WORKSPACE/.cursor/commands"; fi
+    for s in "${SKILLS[@]}"; do
+      write "$CMD_DIR/agents-$s.md" "$(wrapper_body "$s" "The user's arguments are the text after \`/agents-$s\` in their message. Treat that text as \`\$ARGUMENTS\`." "$NATIVE_CMDS")"
     done ;;
 esac
 

@@ -76,6 +76,7 @@ agents/<Name>/
 - **An agent is gone from `/agents:list`.** It is retired. `/agents:list all` shows it. `/agents:start <name>` still works.
 - **"the name agents is already taken by an installed plugin".** The repo has an in-repo copy of the plugin (copied mode) and the marketplace plugin is also installed. Keep one. Marketplace: `claude plugin uninstall agents@normannoble`. Or delete `.claude/skills/agents/`.
 - **Update the plugin:** `claude plugin marketplace update normannoble && claude plugin update agents@normannoble`, then restart.
-- **Use the agents from Codex, Gemini CLI, or OpenCode.** Clone the framework repo and run `bash harness/install.sh <codex|gemini|opencode> <workspace>`. Same agents, same files. Commands are `$agents-start <name>` in Codex, `/agents:start <name>` in Gemini, `/agents-start <name>` in OpenCode.
+- **Use the agents from Codex, Gemini CLI, OpenCode, Pi, or Cursor CLI.** Clone the framework repo and run `bash harness/install.sh <codex|gemini|opencode|pi|cursor> <workspace>`. Same agents, same files. Commands are `$agents-start <name>` in Codex, `/agents:start <name>` in Gemini, `/agents-start <name>` in OpenCode, Pi and Cursor.
+- **Pick a model (OpenRouter and others).** `model: <id>` in `agents/CONVENTIONS.md` frontmatter (or one agent's `context.md`) is passed to the CLI as `--model` for ticks and peer panes, in that CLI's own syntax. OpenRouter is a model provider, not a harness: use it through OpenCode (`model: openrouter/<id>`) or Pi (`model: openrouter/<id>`, with `OPENROUTER_API_KEY` set).
 
 Source and docs: https://github.com/normannoble/GoAgentic

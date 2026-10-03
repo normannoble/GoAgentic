@@ -6,9 +6,12 @@
 # Step 2 runs the harness headlessly on agents/scheduler/prompt.md only when something is due.
 #
 # Harness = the coding-agent CLI that runs the tick. Read from `harness:` in the
-# frontmatter of agents/CONVENTIONS.md (claude | codex | gemini | opencode; default
-# claude). Override with AGENT_HARNESS=<name>. AGENT_HARNESS_CMD="<cmd and flags>"
-# replaces the whole command; the prompt is appended as its last argument.
+# frontmatter of agents/CONVENTIONS.md (claude | codex | gemini | opencode | pi |
+# cursor; default claude). Override with AGENT_HARNESS=<name>. AGENT_HARNESS_CMD="<cmd
+# and flags>" replaces the whole command; the prompt is appended as its last argument.
+#
+# Model = `model:` in the same frontmatter (override: AGENT_MODEL), passed as --model
+# in the harness's own syntax (e.g. opencode: openrouter/<id>). Absent = the CLI's default.
 #
 # Usage: bash agents/scheduler/tick.sh           # normal tick
 #        bash agents/scheduler/tick.sh --dry-run # print what is due, never call the harness
@@ -59,6 +62,11 @@ if [[ -z "$HARNESS" && -f "$WORKSPACE/agents/CONVENTIONS.md" ]]; then
 fi
 HARNESS="${HARNESS:-claude}"
 
+MODEL="${AGENT_MODEL:-}"
+if [[ -z "$MODEL" && -f "$WORKSPACE/agents/CONVENTIONS.md" ]]; then
+  MODEL="$(sed -n '1,/^---$/!d;s/^model:[[:space:]]*//p' "$WORKSPACE/agents/CONVENTIONS.md" | sed 's/[[:space:]]*#.*//' | head -1)"
+fi
+
 # Framework root for non-plugin harnesses: with `extends: plugin` the master
 # conventions and reference files live there. Newest Claude plugin cache is the fallback.
 if [[ -n "${AGENT_FRAMEWORK_ROOT:-}" ]]; then
@@ -85,9 +93,11 @@ if [[ -n "${AGENT_HARNESS_CMD:-}" ]]; then
   TAIL=()
   HARNESS="custom (${CMD[0]})"
 else
-  BIN="$(find_bin "$HARNESS")"
+  # The CLI's executable, where it differs from the harness name
+  case "$HARNESS" in cursor) EXE=cursor-agent ;; *) EXE="$HARNESS" ;; esac
+  BIN="$(find_bin "$EXE")"
   if [[ -z "$BIN" ]]; then
-    echo "$(date '+%Y-%m-%d %H:%M') gate: due=[$DUE] but $HARNESS CLI not found" >> "$LOGS_DIR/cron.log"
+    echo "$(date '+%Y-%m-%d %H:%M') gate: due=[$DUE] but $HARNESS CLI ($EXE) not found" >> "$LOGS_DIR/cron.log"
     exit 1
   fi
   # Unattended run: no one can answer an approval prompt, so each harness gets its
@@ -97,10 +107,14 @@ else
     codex)    CMD=("$BIN" exec -C "$WORKSPACE" --dangerously-bypass-approvals-and-sandbox); TAIL=() ;;
     gemini)   CMD=("$BIN" --approval-mode yolo); TAIL=() ;;
     opencode) CMD=("$BIN" run --auto --dir "$WORKSPACE"); TAIL=() ;;
+    # pi never asks before a tool call; --approve trusts the workspace's .agents/skills
+    pi)       CMD=("$BIN" -p --approve); TAIL=() ;;
+    cursor)   CMD=("$BIN" -p --force --trust --workspace "$WORKSPACE"); TAIL=() ;;
     *)
-      echo "$(date '+%Y-%m-%d %H:%M') gate: due=[$DUE] but harness '$HARNESS' is unknown (claude|codex|gemini|opencode)" >> "$LOGS_DIR/cron.log"
+      echo "$(date '+%Y-%m-%d %H:%M') gate: due=[$DUE] but harness '$HARNESS' is unknown (claude|codex|gemini|opencode|pi|cursor)" >> "$LOGS_DIR/cron.log"
       exit 1 ;;
   esac
+  [[ -n "$MODEL" ]] && CMD+=(--model "$MODEL")
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M') gate: due=[$DUE] — starting $HARNESS" >> "$LOGS_DIR/cron.log"

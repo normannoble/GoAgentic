@@ -72,17 +72,17 @@ curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.
 
 This installs the `goagentic` CLI into `~/.local/bin` (prebuilt for macOS and Linux, no Go needed). If you use [Herdr](https://herdr.dev), it also installs a plugin and binds `prefix+a` to open the dashboard in any Space. Without Herdr, run `goagentic dash` from a workspace. Run the same line again to update. See [Dashboard](#dashboard).
 
-### Use it from Codex, Gemini CLI, or OpenCode
+### Use it from Codex, Gemini CLI, OpenCode, Pi, or Cursor CLI
 
 The agents are markdown; only the command layer is harness-specific. From a clone of this repo:
 
 ```bash
-bash harness/install.sh codex    /path/to/workspace   # or gemini, or opencode
+bash harness/install.sh codex    /path/to/workspace   # or gemini, opencode, pi, cursor
 bash harness/install.sh gemini   /path/to/workspace --user          # user-level commands for every repo
 bash harness/install.sh opencode /path/to/workspace --set-default   # ticks and peer panes use this CLI too
 ```
 
-It writes thin wrapper skills into `.agents/skills/agents-<cmd>/` (the Agent Skills folder all three read), native slash commands where the harness has them (`.gemini/commands/agents/*.toml`, `.opencode/commands/agents-*.md`), and the `## Agents` block in `AGENTS.md` or `GEMINI.md`. Each wrapper points at this checkout, so `git pull` updates every harness at once. Nothing under `.claude/` is touched; Claude Code keeps using the plugin.
+It writes thin wrapper skills into `.agents/skills/agents-<cmd>/` (the Agent Skills folder they all read), native slash commands where the harness has them (`.gemini/commands/agents/*.toml`, `.opencode/commands/agents-*.md`, `.pi/prompts/agents-*.md`, `.cursor/commands/agents-*.md`), and the `## Agents` block in `AGENTS.md` or `GEMINI.md`. Each wrapper points at this checkout, so `git pull` updates every harness at once. Nothing under `.claude/` is touched; Claude Code keeps using the plugin.
 
 | Harness | Start an agent | Any command |
 |---------|----------------|-------------|
@@ -90,8 +90,21 @@ It writes thin wrapper skills into `.agents/skills/agents-<cmd>/` (the Agent Ski
 | Codex | `$agents-start <name>` | `$agents-<cmd>` |
 | Gemini CLI | `/agents:start <name>` | `/agents:<cmd>` |
 | OpenCode | `/agents-start <name>` | `/agents-<cmd>` |
+| Pi | `/agents-start <name>` | `/agents-<cmd>` |
+| Cursor CLI | `/agents-start <name>` | `/agents-<cmd>` |
 
-`harness: <name>` in the workspace's `agents/CONVENTIONS.md` frontmatter picks which CLI the scheduler (`tick.sh`) and `/agents:ask` peer panes use: `claude -p`, `codex exec`, `gemini --approval-mode yolo`, or `opencode run --auto`. Default `claude`. Not ported: the gap-notice hook (Claude Code hooks only) and `${CLAUDE_SESSION_ID}` in session memories (each harness has its own resume command; see `template/agents/reference/session-end.md`).
+`harness: <name>` in the workspace's `agents/CONVENTIONS.md` frontmatter picks which CLI the scheduler (`tick.sh`) and `/agents:ask` peer panes use: `claude -p`, `codex exec`, `gemini --approval-mode yolo`, `opencode run --auto`, `pi -p`, or `cursor-agent -p --force`. Default `claude`. Not ported: the gap-notice hook (Claude Code hooks only) and `${CLAUDE_SESSION_ID}` in session memories (each harness has its own resume command; see `template/agents/reference/session-end.md`).
+
+#### Choosing a model (OpenRouter and others)
+
+The framework never picks a model; each CLI uses its own default. To choose one, set `model:` in `agents/CONVENTIONS.md` frontmatter (every tick and peer pane) or in one agent's `context.md` (that agent's peer panes). It is passed to the CLI as `--model <value>`, so write it the way that CLI expects:
+
+```yaml
+harness: opencode
+model: openrouter/qwen/qwen3-coder   # opencode and pi: <provider>/<model id>
+```
+
+[OpenRouter](https://openrouter.ai) is a model provider, not a harness. Use it through OpenCode or Pi: set `OPENROUTER_API_KEY` and a `model: openrouter/<id>`. Cursor CLI runs only the models in Cursor's own list (`cursor-agent --list-models`).
 
 ### Install by copying (the installer)
 
