@@ -43,12 +43,16 @@ dash | fleet)
 		read -r _
 		exit 1
 	fi
-	# The board and the fleet open in a tab of their own: name the tab after
-	# it and drop the pane label, which would only repeat the tab name.
+	# The board and the fleet open in a new tab of their own: name the tab
+	# after it, move it to the left of the tab row, and drop the pane label,
+	# which would only repeat the tab name.
 	case "${HERDR_PLUGIN_ENTRYPOINT_ID:-}" in board | fleet) tabbed=1 ;; *) tabbed= ;; esac
 	if [ -n "$tabbed" ] && [ -n "${HERDR_PANE_ID:-}" ]; then
 		tab=$("$herdr" pane get "$HERDR_PANE_ID" 2>/dev/null | sed -n 's/.*"tab_id":"\([^"]*\)".*/\1/p')
-		[ -n "$tab" ] && "$herdr" tab rename "$tab" "$title" >/dev/null 2>&1
+		if [ -n "$tab" ]; then
+			"$herdr" tab rename "$tab" "$title" >/dev/null 2>&1
+			"$bin" herdr move-tab "$tab" >/dev/null 2>&1
+		fi
 		"$herdr" pane rename "$HERDR_PANE_ID" "" >/dev/null 2>&1
 	fi
 	# shellcheck disable=SC2086 # args is one or two plain words

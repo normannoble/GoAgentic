@@ -4,12 +4,14 @@
 package herdrsetup
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -411,4 +413,46 @@ func writeChecked(o Options, old, next []byte) error {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// MoveTab moves a tab to a position in its Space's tab row (0 is leftmost)
+// through Herdr's socket API; the herdr CLI has no command for it.
+func MoveTab(socket, tabID string, index int) error {
+	if socket == "" {
+		return errors.New("HERDR_SOCKET_PATH is not set")
+	}
+	conn, err := net.DialTimeout("unix", socket, 2*time.Second)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	req, err := json.Marshal(map[string]any{
+		"id":     "goagentic-move-tab",
+		"method": "tab.move",
+		"params": map[string]any{"tab_id": tabID, "insert_index": index},
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := conn.Write(append(req, '\n')); err != nil {
+		return err
+	}
+	line, err := bufio.NewReader(conn).ReadBytes('\n')
+	if err != nil && len(line) == 0 {
+		return err
+	}
+	var resp struct {
+		Error *struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(line, &resp); err != nil {
+		return fmt.Errorf("tab.move: unreadable reply: %w", err)
+	}
+	if resp.Error != nil {
+		return fmt.Errorf("tab.move: %s: %s", resp.Error.Code, resp.Error.Message)
+	}
+	return nil
 }

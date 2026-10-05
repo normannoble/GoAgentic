@@ -92,7 +92,19 @@ plugin; an existing keybinding is left alone.`,
 		},
 	}
 
-	cmd.AddCommand(install, uninstall, status)
+	var index int
+	moveTab := &cobra.Command{
+		Use:    "move-tab <tab-id>",
+		Short:  "Move a Herdr tab to a position in its Space (0 is leftmost). Used by the plugin.",
+		Hidden: true,
+		Args:   cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return herdrsetup.MoveTab(os.Getenv("HERDR_SOCKET_PATH"), args[0], index)
+		},
+	}
+	moveTab.Flags().IntVar(&index, "index", 0, "Position in the tab row, 0 = leftmost.")
+
+	cmd.AddCommand(install, uninstall, status, moveTab)
 	return cmd
 }
 

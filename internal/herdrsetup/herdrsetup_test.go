@@ -1,6 +1,9 @@
 package herdrsetup
 
 import (
+	"bufio"
+	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -219,5 +222,51 @@ func TestInstallAddsFleetKeyToExistingInstall(t *testing.T) {
 	}
 	if cfg, _ := os.ReadFile(o.ConfigPath); strings.Contains(string(cfg), "goagentic.dash") {
 		t.Errorf("uninstall left a binding:\n%s", cfg)
+	}
+}
+
+func TestMoveTab(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "h.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Skip("unix sockets unavailable:", err)
+	}
+	defer ln.Close()
+	got := make(chan string, 2)
+	go func() {
+		for i := 0; i < 2; i++ {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			line, _ := bufio.NewReader(conn).ReadString('\n')
+			got <- line
+			if i == 0 {
+				conn.Write([]byte(`{"id":"goagentic-move-tab","result":{"type":"tab_list","tabs":[]}}` + "\n"))
+			} else {
+				conn.Write([]byte(`{"id":"goagentic-move-tab","error":{"code":"tab_not_found","message":"no tab w1:t9"}}` + "\n"))
+			}
+			conn.Close()
+		}
+	}()
+
+	if err := MoveTab(sock, "w1:t3", 0); err != nil {
+		t.Fatalf("MoveTab: %v", err)
+	}
+	var req struct {
+		Method string `json:"method"`
+		Params struct {
+			TabID string `json:"tab_id"`
+			Index *int   `json:"insert_index"`
+		} `json:"params"`
+	}
+	if err := json.Unmarshal([]byte(<-got), &req); err != nil || req.Method != "tab.move" || req.Params.TabID != "w1:t3" || req.Params.Index == nil || *req.Params.Index != 0 {
+		t.Errorf("request = %+v (%v)", req, err)
+	}
+	if err := MoveTab(sock, "w1:t9", 0); err == nil || !strings.Contains(err.Error(), "tab_not_found") {
+		t.Errorf("error reply: %v", err)
+	}
+	if err := MoveTab("", "w1:t3", 0); err == nil {
+		t.Errorf("no socket should fail")
 	}
 }
