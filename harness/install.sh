@@ -62,6 +62,10 @@ description_of() {  # first `description:` line of a SKILL.md frontmatter
   sed -n '1,/^---$/!d;s/^description:[[:space:]]*//p' "$ROOT/skills/$1/SKILL.md" | head -1
 }
 
+yaml_description() {  # description_of as a double-quoted YAML string: some contain ": "
+  printf '"%s"' "$(description_of "$1" | sed 's/\\/\\\\/g;s/"/\\"/g')"
+}
+
 # Body shared by every wrapper. $1 = skill name, $2 = how arguments arrive.
 wrapper_body() {
   cat <<BODY
@@ -92,10 +96,9 @@ write() {  # path, content
 # 1. Agent Skills wrappers (all harnesses)
 if [[ $SCOPE == user ]]; then SKILLS_DIR="$HOME/.agents/skills"; else SKILLS_DIR="$WORKSPACE/.agents/skills"; fi
 for s in "${SKILLS[@]}"; do
-  desc="$(description_of "$s")"
   write "$SKILLS_DIR/agents-$s/SKILL.md" "---
 name: agents-$s
-description: $desc
+description: $(yaml_description "$s")
 ---
 
 $(wrapper_body "$s" "The user's arguments are the text after the skill name in their message. Treat that text as \`\$ARGUMENTS\`.")"
@@ -116,7 +119,7 @@ $(wrapper_body "$s" "\`\$ARGUMENTS\` is: {{args}}" "$NATIVE_CMDS")
     if [[ $SCOPE == user ]]; then CMD_DIR="$HOME/.config/opencode/commands"; else CMD_DIR="$WORKSPACE/.opencode/commands"; fi
     for s in "${SKILLS[@]}"; do
       write "$CMD_DIR/agents-$s.md" "---
-description: $(description_of "$s")
+description: $(yaml_description "$s")
 ---
 
 $(wrapper_body "$s" "\`\$ARGUMENTS\` is: \$ARGUMENTS" "$NATIVE_CMDS")"
@@ -125,7 +128,7 @@ $(wrapper_body "$s" "\`\$ARGUMENTS\` is: \$ARGUMENTS" "$NATIVE_CMDS")"
     if [[ $SCOPE == user ]]; then CMD_DIR="$HOME/.pi/agent/prompts"; else CMD_DIR="$WORKSPACE/.pi/prompts"; fi
     for s in "${SKILLS[@]}"; do
       write "$CMD_DIR/agents-$s.md" "---
-description: $(description_of "$s")
+description: $(yaml_description "$s")
 ---
 
 $(wrapper_body "$s" "The user's arguments are: \$@ (use them wherever the skill says ARGUMENTS)." "$NATIVE_CMDS")"
