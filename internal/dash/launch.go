@@ -153,13 +153,22 @@ func HarnessAvailable(ws *Workspace, harness string) (ok bool, reason string) {
 	return false, "no framework commands here: run harness/install.sh " + harness
 }
 
-// modelOf is the model an agent runs on: its own context.md model:, else the
-// workspace's, else none (the CLI's default).
-func modelOf(ws *Workspace, a *Agent) string {
+// launchModel is the model to pass when opening the agent in harness: the
+// agent's own model: in its own harness, or the workspace's model: in the
+// workspace's harness. A model name for one CLI means nothing to another, so
+// a harness picked with O, or an agent set to another CLI than the
+// workspace, gets none.
+func launchModel(ws *Workspace, a *Agent, harness string) string {
+	if harness != harnessOf(ws, a) {
+		return ""
+	}
 	if a.Model != "" {
 		return a.Model
 	}
-	return ws.Model
+	if wsHarness, _ := HarnessSource(ws, &Agent{}); harness == wsHarness {
+		return ws.Model
+	}
+	return ""
 }
 
 // LaunchStep is one Herdr CLI call a launch makes.
@@ -187,7 +196,7 @@ func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string,
 func LaunchPlanWith(ws *Workspace, a *Agent, harness, herdrWorkspace string) (summary string, steps []LaunchStep) {
 	name := strings.ToLower(a.Name)
 	var agentArgs []string
-	if m := modelOf(ws, a); m != "" && harness == harnessOf(ws, a) {
+	if m := launchModel(ws, a, harness); m != "" {
 		agentArgs = []string{"--model", m}
 	}
 	agentArgs = append(agentArgs, startCommand(harness, name))

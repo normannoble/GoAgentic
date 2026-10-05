@@ -768,8 +768,17 @@ func TestHarnessSource(t *testing.T) {
 			t.Errorf("HarnessSource(%q, %q) = %s, %s; want %s, %s", c.ws.Harness, c.agent, h, where, c.want, c.where)
 		}
 	}
+	// The workspace model belongs to the workspace harness (claude here), so
+	// an agent set to pi does not take it; its own model it does.
 	a := &Agent{Name: "Bo", Harness: "pi"}
-	if got := harnessFact(&Workspace{Model: "gpt-5"}, a); got != "harness pi (set for this agent) · model gpt-5" {
+	if got := harnessFact(&Workspace{Model: "claude-sonnet-5-5"}, a); got != "harness pi (set for this agent)" {
+		t.Errorf("harnessFact = %q", got)
+	}
+	a.Model = "openrouter/qwen/qwen3-coder"
+	if got := harnessFact(&Workspace{Model: "claude-sonnet-5-5"}, a); got != "harness pi (set for this agent) · model openrouter/qwen/qwen3-coder" {
+		t.Errorf("harnessFact = %q", got)
+	}
+	if got := harnessFact(&Workspace{Harness: "pi", Model: "gpt-5"}, &Agent{}); got != "harness pi (workspace default) · model gpt-5" {
 		t.Errorf("harnessFact = %q", got)
 	}
 }
@@ -859,7 +868,7 @@ func TestHarnessMenu(t *testing.T) {
 		t.Fatalf("menu should open on the configured harness: %+v", m.menu)
 	}
 	out := m.render()
-	for _, want := range []string{"Open Sigrid in", " › codex     workspace default", "gemini    gemini not installed", "↑↓ choose · enter open · esc cancel"} {
+	for _, want := range []string{"Open Sigrid in", " › codex     workspace default", "gemini    gemini not installed", "s set as default and open"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("menu lacks %q:\n%s", want, out)
 		}
@@ -921,5 +930,97 @@ func TestLookPathUsesTheLoginShellPath(t *testing.T) {
 		if path, err := lookPath(cli); err == nil {
 			t.Errorf("%s should not be found, got %q", cli, path)
 		}
+	}
+}
+
+func TestSetHarness(t *testing.T) {
+	write := func(t *testing.T, front string) (*Agent, string) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "context.md")
+		if err := os.WriteFile(path, []byte("---\n"+front+"---\n\n# Context\n\nscope: not frontmatter\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return &Agent{Name: "Sigrid", Dir: dir}, path
+	}
+	read := func(t *testing.T, path string) string {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	ws := &Workspace{} // inherits claude
+
+	// No line yet: one is added, the rest of the file untouched.
+	a, path := write(t, "scope: Acme\ntitle: Ops\n")
+	if sum, err := SetHarness(ws, a, "codex"); err != nil || sum != "Sigrid now opens in codex" {
+		t.Fatalf("add: %q %v", sum, err)
+	}
+	if got := read(t, path); got != "---\nscope: Acme\ntitle: Ops\nharness: codex\n---\n\n# Context\n\nscope: not frontmatter\n" {
+		t.Errorf("add:\n%s", got)
+	}
+
+	// A different harness replaces the line and drops the agent's model.
+	a, path = write(t, "scope: Acme\nharness: codex   # trial\nmodel: gpt-5\ntitle: Ops\n")
+	a.Harness, a.Model = "codex", "gpt-5"
+	if sum, err := SetHarness(ws, a, "pi"); err != nil || sum != "Sigrid now opens in pi; its model gpt-5 was removed" {
+		t.Fatalf("replace: %q %v", sum, err)
+	}
+	if got := read(t, path); !strings.HasPrefix(got, "---\nscope: Acme\ntitle: Ops\nharness: pi\n---\n") {
+		t.Errorf("replace:\n%s", got)
+	}
+
+	// Back to what the workspace gives: the agent's own line goes.
+	a.Harness, a.Model = "pi", ""
+	if sum, err := SetHarness(ws, a, "claude"); err != nil || sum != "Sigrid now opens in claude (the workspace default)" {
+		t.Fatalf("remove: %q %v", sum, err)
+	}
+	if got := read(t, path); !strings.HasPrefix(got, "---\nscope: Acme\ntitle: Ops\n---\n") {
+		t.Errorf("remove:\n%s", got)
+	}
+
+	// Same harness again keeps the model.
+	a, path = write(t, "harness: pi\nmodel: openrouter/x\n")
+	a.Harness, a.Model = "pi", "openrouter/x"
+	if _, err := SetHarness(ws, a, "pi"); err != nil || !strings.Contains(read(t, path), "model: openrouter/x") {
+		t.Errorf("same harness dropped the model:\n%s", read(t, path))
+	}
+
+	// No frontmatter: refuse, change nothing.
+	dir := t.TempDir()
+	plain := filepath.Join(dir, "context.md")
+	os.WriteFile(plain, []byte("# Context\n"), 0o644)
+	if _, err := SetHarness(ws, &Agent{Name: "X", Dir: dir}, "codex"); err == nil || read(t, plain) != "# Context\n" {
+		t.Errorf("no frontmatter: %v", err)
+	}
+}
+
+func TestHarnessMenuSetsDefault(t *testing.T) {
+	defer func(orig func(string) (string, error)) { lookPath = orig }(lookPath)
+	lookPath = func(cli string) (string, error) { return "/bin/" + cli, nil }
+	root := t.TempDir()
+	dir := filepath.Join(root, "agents", "Sigrid")
+	os.MkdirAll(filepath.Join(root, ".agents/skills/agents-start"), 0o755)
+	os.WriteFile(filepath.Join(root, ".agents/skills/agents-start/SKILL.md"), nil, 0o644)
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "context.md"), []byte("---\nscope: Acme\n---\n"), 0o644)
+	agent := &Agent{Name: "Sigrid", Dir: dir}
+	ws := &Workspace{Root: root, Agents: []*Agent{agent}}
+	scans := 0
+	m := &model{ws: ws, st: NewStyles(true), width: 100, height: 40, scan: func(bool) (*Workspace, error) {
+		scans++
+		return &Workspace{Root: root, Agents: []*Agent{{Name: "Sigrid", Dir: dir, Harness: "codex"}}}, nil
+	}}
+	m.key("O")
+	m.menuKey("down") // codex
+	if cmd := m.menuKey("s"); cmd == nil || m.menu != nil {
+		t.Fatalf("s should set and launch: status %q", m.status)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "context.md"))
+	if string(data) != "---\nscope: Acme\nharness: codex\n---\n" {
+		t.Errorf("context.md:\n%s", data)
+	}
+	if scans != 1 || m.status != "Sigrid now opens in codex · opening…" || harnessOf(m.ws, m.selected()) != "codex" {
+		t.Errorf("after s: scans %d, status %q", scans, m.status)
 	}
 }

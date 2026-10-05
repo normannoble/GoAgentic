@@ -13,7 +13,7 @@ You ask one agent in this workspace to do one bounded thing for the agent you cu
 1. Run `echo "$HERDR_ENV $HERDR_PANE_ID"` (you cannot see env vars otherwise). `HERDR_ENV` must be `1` and `HERDR_PANE_ID` set. Otherwise say `Not inside Herdr — /agents:ask needs a Herdr pane.` and stop.
 2. Workspace root = current working directory; it must contain `agents/`. Glob `agents/<name>/context.md` or `agents/*/<name>/context.md` (case-insensitive). Not found, or `status: retired` → say so, suggest `/agents:list`, stop. **Never** look outside this root and never mention agents from other roots.
 3. Caller = the agent currently active in this session, else `principal`.
-4. Harness = `harness:` in the frontmatter of the **target's** `context.md`; if absent, `harness:` in the frontmatter of `agents/CONVENTIONS.md`; if absent, `claude`. It sets `--kind` in step 4 and the start command in step 5: `claude` and `gemini` → `/agents:start`; `codex` → `$agents-start`; `opencode`, `pi` and `cursor` → `/agents-start`. Model = `model:` from the same two files in the same order; absent means the CLI's default.
+4. Harness = `harness:` in the frontmatter of the **target's** `context.md`; if absent, `harness:` in the frontmatter of `agents/CONVENTIONS.md`; if absent, `claude`. It sets `--kind` in step 4 and the start command in step 5: `claude` and `gemini` → `/agents:start`; `codex` → `$agents-start`; `opencode`, `pi` and `cursor` → `/agents-start`. Model = `model:` in the target's `context.md`; if absent, `model:` in `agents/CONVENTIONS.md`, but only when the target runs the workspace's harness (a model name for one CLI means nothing to another); absent means the CLI's default.
 
 ## Steps
 

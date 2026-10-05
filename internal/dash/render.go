@@ -405,7 +405,7 @@ func harnessFact(ws *Workspace, a *Agent) string {
 	h, source := HarnessSource(ws, a)
 	where := map[string]string{"agent": "set for this agent", "workspace": "workspace default", "default": "default"}[source]
 	fact := "harness " + h + " (" + where + ")"
-	if m := modelOf(ws, a); m != "" {
+	if m := launchModel(ws, a, h); m != "" {
 		fact += " · model " + m
 	}
 	return fact

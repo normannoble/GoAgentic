@@ -245,7 +245,7 @@ func (m *model) menuKey(k string) tea.Cmd {
 		m.menu.cursor = max(0, m.menu.cursor-1)
 	case "down", "j":
 		m.menu.cursor = min(len(Harnesses)-1, m.menu.cursor+1)
-	case "enter", "o":
+	case "enter", "o", "s":
 		a := m.selected()
 		if a == nil || a.Name != m.menu.agent {
 			m.menu = nil
@@ -257,7 +257,27 @@ func (m *model) menuKey(k string) tea.Cmd {
 		}
 		h := Harnesses[m.menu.cursor]
 		m.menu = nil
-		return m.launchIn(a, h)
+		if k != "s" {
+			return m.launchIn(a, h)
+		}
+		// s also makes it the agent's default, then opens it there.
+		summary, err := SetHarness(m.ws, a, h)
+		if err != nil {
+			m.status = "✗ " + err.Error()
+			return nil
+		}
+		ws, err := m.scan(m.all)
+		if err != nil {
+			m.status = "✗ " + err.Error()
+			return nil
+		}
+		m.keepSelection(ws)
+		if a = m.selected(); a == nil {
+			return nil
+		}
+		cmd := m.launchIn(a, h)
+		m.status = summary + " · opening…"
+		return cmd
 	}
 	return nil
 }
@@ -313,7 +333,7 @@ func (m *model) render() string {
 		footer = m.st.Dim.Render("↑↓ scroll · enter open · O open in… · esc back · q quit")
 	}
 	if m.menu != nil {
-		footer = m.st.Dim.Render("↑↓ choose · enter open · esc cancel")
+		footer = m.st.Dim.Render("↑↓ choose · enter open this time · s set as default and open · esc cancel")
 	}
 	if m.status != "" {
 		style := m.st.Accent
