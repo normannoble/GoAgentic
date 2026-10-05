@@ -63,9 +63,9 @@ func SetHarness(ws *Workspace, a *Agent, harness string) (string, error) {
 		return "", err
 	}
 
-	summary := a.Name + " now opens in " + harness
+	summary := a.Name + " → " + harness
 	if !keep {
-		summary += " (the workspace default)"
+		summary += " (workspace default)"
 	}
 	if removedModel != "" {
 		summary += "; its model " + removedModel + " was removed"

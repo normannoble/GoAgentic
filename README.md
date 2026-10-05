@@ -335,7 +335,7 @@ Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and t
 
 ### Dashboard
 
-`goagentic dash` shows one workspace's agents without starting any of them. It reads only files, plus `herdr agent list` for live panes and Claude Code transcripts for "last started", and refreshes every 5 seconds. It changes nothing, except one line when you set an agent's harness (`O`, then `s`).
+`goagentic dash` shows one workspace's agents without starting any of them. It reads only files, plus `herdr agent list` for live panes and Claude Code transcripts for "last started", and refreshes every 5 seconds. It changes nothing, except one line when you change an agent's harness (`c`).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash
@@ -347,7 +347,7 @@ The installer puts `goagentic` in `~/.local/bin`. With Herdr, `goagentic herdr i
 
 **Colours:** a dot before an agent's name says whether it needs you. Red means a problem: an overdue item, a blocked P1, or a health failure. Amber means something is waiting on you. Green means the agent is working. No dot means nothing to act on.
 
-**Keys:** `↑`/`↓` select an agent. `enter` opens it in its harness (the agent's `harness:`, else the workspace's, else Claude): it focuses the agent's pane if it is running, starts it in its old pane, or starts it in a new tab. It never starts a second copy. `O` opens a menu of all six harnesses with the configured one selected; it greys out any whose CLI is not installed (on the PATH your login shell sets up) or whose framework commands the workspace lacks (`harness/install.sh <harness>`). In the menu, `enter` opens the agent in that harness this time only; `s` makes it the agent's default, by writing `harness:` into its `context.md` (or removing the line when it matches the workspace), and opens it. That is the only change the dashboard ever makes to a file; the agent's next wrap commits it. A `model:` goes along only in the harness it was set for. `→` shows full detail, `r` refreshes, `a` includes retired agents, `q` quits.
+**Keys:** `↑`/`↓` select an agent. `enter` opens it in its harness: it focuses the agent's pane if it is running, starts it in its old pane, or starts it in a new tab. It never starts a second copy. `c` changes the agent's harness without opening it: a menu lists all six, the current one filled in and the workspace default named; any whose CLI is not installed (on the PATH your login shell sets up) or whose framework commands the workspace lacks (`harness/install.sh <harness>`) shows why and cannot be picked. `enter` saves: it writes `harness:` into the agent's `context.md`, or removes the line when the pick is the workspace default, and drops the agent's own `model:` when the harness changes. A running agent keeps its CLI until its next start. The agent's next wrap commits the change. `→` shows full detail, `r` refreshes, `a` includes retired agents, `q` quits.
 
 **Fleet:** `goagentic dash --fleet` shows every workspace under `~/agents` (or `--root <dir>`) as one row: agents, live, for you, overdue, blocked P1s, health, and who needs you. `enter` opens that workspace's dashboard; `esc` comes back. In Herdr, `prefix+shift+a` opens it in its own tab. Symlinked workspace names are skipped, so a renamed workspace is listed once.
 

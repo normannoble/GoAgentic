@@ -67,7 +67,7 @@ type model struct {
 	menu *harnessMenu
 }
 
-// harnessMenu picks the harness to open an agent in, this time only.
+// harnessMenu changes the harness an agent opens in.
 type harnessMenu struct {
 	agent  string
 	cursor int
@@ -174,7 +174,7 @@ func (m *model) key(k string) tea.Cmd {
 		m.cursor = max(0, n-1)
 	case "enter", "o":
 		return m.launch()
-	case "O":
+	case "c":
 		m.openMenu()
 	case "right", "l":
 		m.full, m.scroll = true, 0
@@ -191,44 +191,34 @@ func (m *model) key(k string) tea.Cmd {
 	return nil
 }
 
-// launch opens the selected agent in Herdr in its configured harness.
+// launch opens the selected agent in Herdr, in its harness, off the UI
+// goroutine; starting an agent waits for its CLI to be ready.
 func (m *model) launch() tea.Cmd {
 	a := m.selected()
 	if a == nil {
 		return nil
 	}
-	return m.launchIn(a, harnessOf(m.ws, a))
-}
-
-// launchIn opens the agent in the given harness off the UI goroutine;
-// starting an agent waits for its CLI to be ready.
-func (m *model) launchIn(a *Agent, harness string) tea.Cmd {
-	m.status = "opening " + a.Name + " in " + harness + "…"
+	m.status = "opening " + a.Name + " in " + harnessOf(m.ws, a) + "…"
 	ws := m.ws
 	return func() tea.Msg {
-		summary, err := LaunchWith(ws, a, harness)
+		summary, err := Launch(ws, a)
 		return launchedMsg{summary, err}
 	}
 }
 
-// openMenu opens the harness menu on the selected agent, with its configured
-// harness pre-selected. An agent already running has its CLI: the menu
-// stays shut and enter switches to it.
+// openMenu opens the harness menu on the selected agent, its current harness
+// selected. Changing it opens nothing; enter opens the agent afterwards.
 func (m *model) openMenu() {
 	a := m.selected()
 	if a == nil {
 		return
 	}
-	if a.Live != nil && a.Live.Running {
-		m.status = a.Name + " is already open in pane " + a.Live.PaneID + ": enter switches to it"
-		return
-	}
 	menu := &harnessMenu{agent: a.Name}
-	configured := harnessOf(m.ws, a)
+	current := harnessOf(m.ws, a)
 	for i, h := range Harnesses {
 		_, reason := HarnessAvailable(m.ws, h)
 		menu.reasons = append(menu.reasons, reason)
-		if h == configured {
+		if h == current {
 			menu.cursor = i
 		}
 	}
@@ -237,7 +227,7 @@ func (m *model) openMenu() {
 
 func (m *model) menuKey(k string) tea.Cmd {
 	switch k {
-	case "esc", "q", "O":
+	case "esc", "q", "c":
 		m.menu = nil
 	case "ctrl+c":
 		return tea.Quit
@@ -245,65 +235,74 @@ func (m *model) menuKey(k string) tea.Cmd {
 		m.menu.cursor = max(0, m.menu.cursor-1)
 	case "down", "j":
 		m.menu.cursor = min(len(Harnesses)-1, m.menu.cursor+1)
-	case "enter", "o", "s":
-		a := m.selected()
-		if a == nil || a.Name != m.menu.agent {
-			m.menu = nil
-			return nil
-		}
-		if reason := m.menu.reasons[m.menu.cursor]; reason != "" {
-			m.status = "✗ " + Harnesses[m.menu.cursor] + ": " + reason
-			return nil
-		}
-		h := Harnesses[m.menu.cursor]
-		m.menu = nil
-		if k != "s" {
-			return m.launchIn(a, h)
-		}
-		// s also makes it the agent's default, then opens it there.
-		summary, err := SetHarness(m.ws, a, h)
-		if err != nil {
-			m.status = "✗ " + err.Error()
-			return nil
-		}
-		ws, err := m.scan(m.all)
-		if err != nil {
-			m.status = "✗ " + err.Error()
-			return nil
-		}
-		m.keepSelection(ws)
-		if a = m.selected(); a == nil {
-			return nil
-		}
-		cmd := m.launchIn(a, h)
-		m.status = summary + " · opening…"
-		return cmd
+	case "enter", "space":
+		m.saveHarness()
 	}
 	return nil
 }
 
-// menuLines renders the harness menu: every harness, the configured one
-// marked, the ones that cannot open here dimmed with the reason.
+// saveHarness makes the menu's pick the agent's harness and closes the menu.
+func (m *model) saveHarness() {
+	a := m.selected()
+	h := Harnesses[m.menu.cursor]
+	if a == nil || a.Name != m.menu.agent {
+		m.menu = nil
+		return
+	}
+	if reason := m.menu.reasons[m.menu.cursor]; reason != "" {
+		m.status = "✗ " + h + ": " + reason
+		return
+	}
+	m.menu = nil
+	if h == harnessOf(m.ws, a) {
+		m.status = a.Name + " already uses " + h
+		return
+	}
+	summary, err := SetHarness(m.ws, a, h)
+	if err != nil {
+		m.status = "✗ " + err.Error()
+		return
+	}
+	if a.Live != nil && a.Live.Running {
+		summary += "; it is running now, so this applies from its next start"
+	}
+	m.status = summary
+	if ws, err := m.scan(m.all); err == nil {
+		m.keepSelection(ws)
+	}
+}
+
+// menuLines renders the harness menu: every harness, the current one filled
+// in, the workspace default named, and why any of them cannot run here.
 func (m *model) menuLines(a *Agent) []string {
-	configured, source := HarnessSource(m.ws, a)
-	lines := []string{m.st.Title.Render("Open " + a.Name + " in")}
+	current := harnessOf(m.ws, a)
+	inherited, _ := HarnessSource(m.ws, &Agent{})
+	lines := []string{m.st.Title.Render("Harness for " + a.Name)}
 	for i, h := range Harnesses {
 		marker := "   "
 		if i == m.menu.cursor {
 			marker = m.st.Title.Render(" › ")
 		}
-		note := ""
-		if h == configured {
-			note = map[string]string{"agent": "set for this agent", "workspace": "workspace default", "default": "default"}[source]
+		dot := "○ "
+		if h == current {
+			dot = "● "
 		}
-		line := fit(h, 10) + note
-		if reason := m.menu.reasons[i]; reason != "" {
-			if note != "" {
-				note += " · "
-			}
-			line = m.st.Dim.Render(fit(h, 10) + note + reason)
+		var notes []string
+		if h == current {
+			notes = append(notes, "current")
 		}
-		lines = append(lines, marker+line)
+		if h == inherited {
+			notes = append(notes, "workspace default")
+		}
+		reason := m.menu.reasons[i]
+		if reason != "" {
+			notes = append(notes, reason)
+		}
+		line := dot + fit(h, 10) + strings.Join(notes, " · ")
+		if reason != "" {
+			line = m.st.Dim.Render(line)
+		}
+		lines = append(lines, strings.TrimRight(marker+line, " "))
 	}
 	return lines
 }
@@ -328,12 +327,12 @@ func (m *model) render() string {
 	if m.inFleet {
 		quit = "esc fleet"
 	}
-	footer := m.st.Dim.Render("↑↓ select · enter open · O open in… · → detail · r refresh · " + quit)
+	footer := m.st.Dim.Render("↑↓ select · enter open · c harness · → detail · r refresh · " + quit)
 	if m.full {
-		footer = m.st.Dim.Render("↑↓ scroll · enter open · O open in… · esc back · q quit")
+		footer = m.st.Dim.Render("↑↓ scroll · enter open · c harness · esc back · q quit")
 	}
 	if m.menu != nil {
-		footer = m.st.Dim.Render("↑↓ choose · enter open this time · s set as default and open · esc cancel")
+		footer = m.st.Dim.Render("↑↓ choose · enter save · esc cancel")
 	}
 	if m.status != "" {
 		style := m.st.Accent

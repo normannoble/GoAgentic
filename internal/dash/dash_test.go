@@ -826,22 +826,20 @@ func TestHarnessAvailable(t *testing.T) {
 	}
 }
 
-func TestLaunchPlanWithPickedHarness(t *testing.T) {
-	ws := &Workspace{Root: "/ws", Harness: "claude", Model: "claude-sonnet-5-5"}
-	a := &Agent{Name: "Sigrid", Live: &LivePane{PaneID: "w1:p3"}}
-
-	// The configured harness keeps its model.
-	_, steps := LaunchPlanWith(ws, a, "claude", "w1")
-	if got := strings.Join(steps[0].Args, " "); got != "agent start sigrid --kind claude --pane w1:p3 -- --model claude-sonnet-5-5 /agents:start sigrid" {
-		t.Errorf("configured: %s", got)
+func TestLaunchPlanModelFollowsItsHarness(t *testing.T) {
+	ws := &Workspace{Root: "/ws", Model: "claude-sonnet-5-5"} // claude workspace
+	join := func(a *Agent) string {
+		_, steps := LaunchPlan(ws, a, "w1")
+		return strings.Join(steps[0].Args, " ")
 	}
-	// Another harness drops it and uses its own start command.
-	sum, steps := LaunchPlanWith(ws, a, "pi", "w1")
-	if got := strings.Join(steps[0].Args, " "); got != "agent start sigrid --kind pi --pane w1:p3 -- /agents-start sigrid" {
-		t.Errorf("picked pi: %s", got)
+	if got := join(&Agent{Name: "Sigrid", Live: &LivePane{PaneID: "w1:p3"}}); got != "agent start sigrid --kind claude --pane w1:p3 -- --model claude-sonnet-5-5 /agents:start sigrid" {
+		t.Errorf("workspace harness: %s", got)
 	}
-	if sum != "started Sigrid (pi) in its pane" {
-		t.Errorf("summary: %q", sum)
+	if got := join(&Agent{Name: "Sigrid", Harness: "pi", Live: &LivePane{PaneID: "w1:p3"}}); got != "agent start sigrid --kind pi --pane w1:p3 -- /agents-start sigrid" {
+		t.Errorf("own harness, no model: %s", got)
+	}
+	if got := join(&Agent{Name: "Sigrid", Harness: "pi", Model: "openrouter/x", Live: &LivePane{PaneID: "w1:p3"}}); got != "agent start sigrid --kind pi --pane w1:p3 -- --model openrouter/x /agents-start sigrid" {
+		t.Errorf("own harness and model: %s", got)
 	}
 }
 
@@ -854,52 +852,46 @@ func TestHarnessMenu(t *testing.T) {
 		return "", errors.New("not found")
 	}
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, ".agents/skills/agents-start"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".agents/skills/agents-start/SKILL.md"), nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ws := &Workspace{Root: root, Harness: "codex", Agents: []*Agent{{Name: "Sigrid"}, {Name: "Varro", Live: &LivePane{PaneID: "w1:p9", Running: true}}}}
+	os.MkdirAll(filepath.Join(root, ".agents/skills/agents-start"), 0o755)
+	os.WriteFile(filepath.Join(root, ".agents/skills/agents-start/SKILL.md"), nil, 0o644)
+	ws := &Workspace{Root: root, Harness: "codex", Agents: []*Agent{{Name: "Sigrid"}}}
 	m := &model{ws: ws, st: NewStyles(true), width: 100, height: 40}
 
-	m.key("O")
+	m.key("c")
 	if m.menu == nil || Harnesses[m.menu.cursor] != "codex" {
-		t.Fatalf("menu should open on the configured harness: %+v", m.menu)
+		t.Fatalf("menu should open on the current harness: %+v", m.menu)
 	}
 	out := m.render()
-	for _, want := range []string{"Open Sigrid in", " › codex     workspace default", "gemini    gemini not installed", "s set as default and open"} {
+	for _, want := range []string{"Harness for Sigrid", " › ● codex     current · workspace default", "○ claude", "○ gemini    gemini not installed", "↑↓ choose · enter save · esc cancel"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("menu lacks %q:\n%s", want, out)
 		}
 	}
+	if !strings.Contains(m.render(), "Harness for") || strings.Contains(out, "c harness") {
+		t.Errorf("the menu footer should replace the table footer")
+	}
 
-	// An unavailable harness says why and keeps the menu open.
+	// A harness that cannot run here says why and the menu stays open.
 	m.menuKey("down")
 	if cmd := m.menuKey("enter"); cmd != nil || m.menu == nil || m.status != "✗ gemini: gemini not installed" {
 		t.Errorf("unavailable: status %q, menu %v", m.status, m.menu)
 	}
-	// q closes the menu, not the dashboard.
+	// The current harness: nothing to save.
+	m.menuKey("up")
+	m.menuKey("enter")
+	if m.menu != nil || m.status != "Sigrid already uses codex" {
+		t.Errorf("same: status %q", m.status)
+	}
+	// q and esc close the menu, not the dashboard.
+	m.key("c")
 	if cmd := m.menuKey("q"); cmd != nil || m.menu != nil {
 		t.Errorf("q should only close the menu")
 	}
-	// An available harness launches and closes the menu.
-	m.key("O")
-	m.menuKey("up")
-	if cmd := m.menuKey("enter"); cmd == nil || m.menu != nil || m.status != "opening Sigrid in claude…" {
-		t.Errorf("launch: status %q, menu %v", m.status, m.menu)
-	}
-
-	// A running agent: no menu, enter switches to it.
-	m.key("down")
-	m.key("O")
-	if m.menu != nil || !strings.Contains(m.status, "already open in pane w1:p9") {
-		t.Errorf("running agent: menu %v, status %q", m.menu, m.status)
+	if !strings.Contains(m.render(), "enter open · c harness") {
+		t.Errorf("table footer should name c")
 	}
 }
 
-// The dashboard runs as a Herdr plugin with the system PATH only; the CLIs
-// are found on the user's login-shell PATH instead.
 func TestLookPathUsesTheLoginShellPath(t *testing.T) {
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "nvm", "bin")
@@ -953,7 +945,7 @@ func TestSetHarness(t *testing.T) {
 
 	// No line yet: one is added, the rest of the file untouched.
 	a, path := write(t, "scope: Acme\ntitle: Ops\n")
-	if sum, err := SetHarness(ws, a, "codex"); err != nil || sum != "Sigrid now opens in codex" {
+	if sum, err := SetHarness(ws, a, "codex"); err != nil || sum != "Sigrid → codex" {
 		t.Fatalf("add: %q %v", sum, err)
 	}
 	if got := read(t, path); got != "---\nscope: Acme\ntitle: Ops\nharness: codex\n---\n\n# Context\n\nscope: not frontmatter\n" {
@@ -963,7 +955,7 @@ func TestSetHarness(t *testing.T) {
 	// A different harness replaces the line and drops the agent's model.
 	a, path = write(t, "scope: Acme\nharness: codex   # trial\nmodel: gpt-5\ntitle: Ops\n")
 	a.Harness, a.Model = "codex", "gpt-5"
-	if sum, err := SetHarness(ws, a, "pi"); err != nil || sum != "Sigrid now opens in pi; its model gpt-5 was removed" {
+	if sum, err := SetHarness(ws, a, "pi"); err != nil || sum != "Sigrid → pi; its model gpt-5 was removed" {
 		t.Fatalf("replace: %q %v", sum, err)
 	}
 	if got := read(t, path); !strings.HasPrefix(got, "---\nscope: Acme\ntitle: Ops\nharness: pi\n---\n") {
@@ -972,7 +964,7 @@ func TestSetHarness(t *testing.T) {
 
 	// Back to what the workspace gives: the agent's own line goes.
 	a.Harness, a.Model = "pi", ""
-	if sum, err := SetHarness(ws, a, "claude"); err != nil || sum != "Sigrid now opens in claude (the workspace default)" {
+	if sum, err := SetHarness(ws, a, "claude"); err != nil || sum != "Sigrid → claude (workspace default)" {
 		t.Fatalf("remove: %q %v", sum, err)
 	}
 	if got := read(t, path); !strings.HasPrefix(got, "---\nscope: Acme\ntitle: Ops\n---\n") {
@@ -995,7 +987,7 @@ func TestSetHarness(t *testing.T) {
 	}
 }
 
-func TestHarnessMenuSetsDefault(t *testing.T) {
+func TestHarnessMenuSavesWithoutOpening(t *testing.T) {
 	defer func(orig func(string) (string, error)) { lookPath = orig }(lookPath)
 	lookPath = func(cli string) (string, error) { return "/bin/" + cli, nil }
 	root := t.TempDir()
@@ -1004,23 +996,25 @@ func TestHarnessMenuSetsDefault(t *testing.T) {
 	os.WriteFile(filepath.Join(root, ".agents/skills/agents-start/SKILL.md"), nil, 0o644)
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(filepath.Join(dir, "context.md"), []byte("---\nscope: Acme\n---\n"), 0o644)
-	agent := &Agent{Name: "Sigrid", Dir: dir}
+	// Running in claude now.
+	agent := &Agent{Name: "Sigrid", Dir: dir, Live: &LivePane{PaneID: "w1:p2", Running: true}}
 	ws := &Workspace{Root: root, Agents: []*Agent{agent}}
 	scans := 0
 	m := &model{ws: ws, st: NewStyles(true), width: 100, height: 40, scan: func(bool) (*Workspace, error) {
 		scans++
 		return &Workspace{Root: root, Agents: []*Agent{{Name: "Sigrid", Dir: dir, Harness: "codex"}}}, nil
 	}}
-	m.key("O")
+	m.key("c")
 	m.menuKey("down") // codex
-	if cmd := m.menuKey("s"); cmd == nil || m.menu != nil {
-		t.Fatalf("s should set and launch: status %q", m.status)
+	if cmd := m.menuKey("enter"); cmd != nil {
+		t.Fatalf("saving must not open the agent")
 	}
 	data, _ := os.ReadFile(filepath.Join(dir, "context.md"))
 	if string(data) != "---\nscope: Acme\nharness: codex\n---\n" {
 		t.Errorf("context.md:\n%s", data)
 	}
-	if scans != 1 || m.status != "Sigrid now opens in codex · opening…" || harnessOf(m.ws, m.selected()) != "codex" {
-		t.Errorf("after s: scans %d, status %q", scans, m.status)
+	if m.menu != nil || scans != 1 || harnessOf(m.ws, m.selected()) != "codex" ||
+		m.status != "Sigrid → codex; it is running now, so this applies from its next start" {
+		t.Errorf("after save: scans %d, status %q", scans, m.status)
 	}
 }

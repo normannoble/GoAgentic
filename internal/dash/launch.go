@@ -153,22 +153,17 @@ func HarnessAvailable(ws *Workspace, harness string) (ok bool, reason string) {
 	return false, "no framework commands here: run harness/install.sh " + harness
 }
 
-// launchModel is the model to pass when opening the agent in harness: the
-// agent's own model: in its own harness, or the workspace's model: in the
-// workspace's harness. A model name for one CLI means nothing to another, so
-// a harness picked with O, or an agent set to another CLI than the
-// workspace, gets none.
-func launchModel(ws *Workspace, a *Agent, harness string) string {
-	if harness != harnessOf(ws, a) {
-		return ""
-	}
+// agentModel is the model the agent runs on: its own model:, else the
+// workspace's model: when the agent runs the workspace's harness. A model
+// name for one CLI means nothing to another.
+func agentModel(ws *Workspace, a *Agent) string {
 	if a.Model != "" {
 		return a.Model
 	}
-	if wsHarness, _ := HarnessSource(ws, &Agent{}); harness == wsHarness {
-		return ws.Model
+	if wsHarness, _ := HarnessSource(ws, &Agent{}); harnessOf(ws, a) != wsHarness {
+		return ""
 	}
-	return ""
+	return ws.Model
 }
 
 // LaunchStep is one Herdr CLI call a launch makes.
@@ -187,16 +182,10 @@ type LaunchStep struct {
 // where the agent is already running, start it again in its leftover shell
 // pane, or start it in a new tab of the current Space.
 func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string, steps []LaunchStep) {
-	return LaunchPlanWith(ws, a, harnessOf(ws, a), herdrWorkspace)
-}
-
-// LaunchPlanWith is LaunchPlan in a harness picked for this launch. The
-// configured model goes along only in the configured harness: a model name
-// for one CLI means nothing to another.
-func LaunchPlanWith(ws *Workspace, a *Agent, harness, herdrWorkspace string) (summary string, steps []LaunchStep) {
+	harness := harnessOf(ws, a)
 	name := strings.ToLower(a.Name)
 	var agentArgs []string
-	if m := launchModel(ws, a, harness); m != "" {
+	if m := agentModel(ws, a); m != "" {
 		agentArgs = []string{"--model", m}
 	}
 	agentArgs = append(agentArgs, startCommand(harness, name))
@@ -233,16 +222,11 @@ func LaunchPlanWith(ws *Workspace, a *Agent, harness, herdrWorkspace string) (su
 // Launch opens the agent in Herdr (see LaunchPlan) and returns a one-line
 // result for the status bar.
 func Launch(ws *Workspace, a *Agent) (string, error) {
-	return LaunchWith(ws, a, harnessOf(ws, a))
-}
-
-// LaunchWith is Launch in a harness picked for this launch.
-func LaunchWith(ws *Workspace, a *Agent, harness string) (string, error) {
 	if os.Getenv("HERDR_ENV") != "1" && os.Getenv("HERDR_BIN_PATH") == "" {
 		return "", ErrNoHerdr
 	}
 	bin := herdrBin()
-	summary, steps := LaunchPlanWith(ws, a, harness, os.Getenv("HERDR_WORKSPACE_ID"))
+	summary, steps := LaunchPlan(ws, a, os.Getenv("HERDR_WORKSPACE_ID"))
 	newPane := ""
 	for _, step := range steps {
 		args := step.Args
