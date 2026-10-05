@@ -37,7 +37,7 @@ An **agent** is a named, persistent collaborator that lives in this repo as mark
 | `/agents:schedule` | Unattended tasks. `add`, `list`, `remove <id>`, `enable`/`disable <id>`, `status`, `install` (the hourly timer). |
 | `/agents:help <command>` | Details for one command. |
 
-**Dashboard (outside Claude):** `goagentic dash` shows every agent's next item, last session, health and what waits on you, with no session running. `goagentic dash --fleet` shows every workspace under `~/agents`, one row each. In Herdr, `prefix+a` opens the dashboard and `prefix+shift+a` the fleet. Install or update it with `curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash`.
+**Dashboard (outside Claude):** `goagentic dash` shows every agent's next item, harness, health and what waits on you, with no session running; `enter` opens an agent, `O` opens it in another harness. `goagentic dash --fleet` shows every workspace under `~/agents`, one row each. In Herdr, `prefix+a` opens the dashboard and `prefix+shift+a` the fleet. Install or update it with `curl -fsSL https://raw.githubusercontent.com/normannoble/GoAgentic/main/install.sh | sh -s -- --dash`.
 
 ## The flow
 

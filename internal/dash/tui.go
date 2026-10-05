@@ -62,6 +62,16 @@ type model struct {
 	quitAfterLaunch bool
 	// inFleet: opened from the fleet view, where esc goes back to it.
 	inFleet bool
+	// menu is the open harness menu, nil when closed.
+	menu *harnessMenu
+}
+
+// harnessMenu picks the harness to open an agent in, this time only.
+type harnessMenu struct {
+	agent  string
+	cursor int
+	// reasons holds why each harness cannot open here; "" means it can.
+	reasons []string
 }
 
 func (m *model) Init() tea.Cmd { return tick() }
@@ -101,6 +111,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.rescan()
 	case tea.KeyPressMsg:
 		m.status = ""
+		if m.menu != nil {
+			return m, m.menuKey(msg.String())
+		}
 		return m, m.key(msg.String())
 	}
 	return m, nil
@@ -160,6 +173,8 @@ func (m *model) key(k string) tea.Cmd {
 		m.cursor = max(0, n-1)
 	case "enter", "o":
 		return m.launch()
+	case "O":
+		m.openMenu()
 	case "right", "l":
 		m.full, m.scroll = true, 0
 	case "left", "h":
@@ -175,19 +190,101 @@ func (m *model) key(k string) tea.Cmd {
 	return nil
 }
 
-// launch opens the selected agent in Herdr off the UI goroutine; starting an
-// agent waits for its CLI to be ready.
+// launch opens the selected agent in Herdr in its configured harness.
 func (m *model) launch() tea.Cmd {
 	a := m.selected()
 	if a == nil {
 		return nil
 	}
-	m.status = "opening " + a.Name + "…"
+	return m.launchIn(a, harnessOf(m.ws, a))
+}
+
+// launchIn opens the agent in the given harness off the UI goroutine;
+// starting an agent waits for its CLI to be ready.
+func (m *model) launchIn(a *Agent, harness string) tea.Cmd {
+	m.status = "opening " + a.Name + " in " + harness + "…"
 	ws := m.ws
 	return func() tea.Msg {
-		summary, err := Launch(ws, a)
+		summary, err := LaunchWith(ws, a, harness)
 		return launchedMsg{summary, err}
 	}
+}
+
+// openMenu opens the harness menu on the selected agent, with its configured
+// harness pre-selected. An agent already running has its CLI: the menu
+// stays shut and enter switches to it.
+func (m *model) openMenu() {
+	a := m.selected()
+	if a == nil {
+		return
+	}
+	if a.Live != nil && a.Live.Running {
+		m.status = a.Name + " is already open in pane " + a.Live.PaneID + ": enter switches to it"
+		return
+	}
+	menu := &harnessMenu{agent: a.Name}
+	configured := harnessOf(m.ws, a)
+	for i, h := range Harnesses {
+		_, reason := HarnessAvailable(m.ws, h)
+		menu.reasons = append(menu.reasons, reason)
+		if h == configured {
+			menu.cursor = i
+		}
+	}
+	m.menu = menu
+}
+
+func (m *model) menuKey(k string) tea.Cmd {
+	switch k {
+	case "esc", "q", "O":
+		m.menu = nil
+	case "ctrl+c":
+		return tea.Quit
+	case "up", "k":
+		m.menu.cursor = max(0, m.menu.cursor-1)
+	case "down", "j":
+		m.menu.cursor = min(len(Harnesses)-1, m.menu.cursor+1)
+	case "enter", "o":
+		a := m.selected()
+		if a == nil || a.Name != m.menu.agent {
+			m.menu = nil
+			return nil
+		}
+		if reason := m.menu.reasons[m.menu.cursor]; reason != "" {
+			m.status = "✗ " + Harnesses[m.menu.cursor] + ": " + reason
+			return nil
+		}
+		h := Harnesses[m.menu.cursor]
+		m.menu = nil
+		return m.launchIn(a, h)
+	}
+	return nil
+}
+
+// menuLines renders the harness menu: every harness, the configured one
+// marked, the ones that cannot open here dimmed with the reason.
+func (m *model) menuLines(a *Agent) []string {
+	configured, source := HarnessSource(m.ws, a)
+	lines := []string{m.st.Title.Render("Open " + a.Name + " in")}
+	for i, h := range Harnesses {
+		marker := "   "
+		if i == m.menu.cursor {
+			marker = m.st.Title.Render(" › ")
+		}
+		note := ""
+		if h == configured {
+			note = map[string]string{"agent": "set for this agent", "workspace": "workspace default", "default": "default"}[source]
+		}
+		line := fit(h, 10) + note
+		if reason := m.menu.reasons[i]; reason != "" {
+			if note != "" {
+				note += " · "
+			}
+			line = m.st.Dim.Render(fit(h, 10) + note + reason)
+		}
+		lines = append(lines, marker+line)
+	}
+	return lines
 }
 
 func (m *model) View() tea.View {
@@ -210,9 +307,12 @@ func (m *model) render() string {
 	if m.inFleet {
 		quit = "esc fleet"
 	}
-	footer := m.st.Dim.Render("↑↓ select · enter open · → detail · r refresh · " + quit)
+	footer := m.st.Dim.Render("↑↓ select · enter open · O open in… · → detail · r refresh · " + quit)
 	if m.full {
-		footer = m.st.Dim.Render("↑↓ scroll · enter open · esc back · q quit")
+		footer = m.st.Dim.Render("↑↓ scroll · enter open · O open in… · esc back · q quit")
+	}
+	if m.menu != nil {
+		footer = m.st.Dim.Render("↑↓ choose · enter open · esc cancel")
 	}
 	if m.status != "" {
 		style := m.st.Accent
@@ -230,6 +330,9 @@ func (m *model) render() string {
 
 	if a := m.selected(); m.full && a != nil {
 		body := Detail(m.ws, a, w, 0, m.st)
+		if m.menu != nil {
+			body = m.menuLines(a)
+		}
 		room := h - len(top) - 2
 		m.scroll = min(m.scroll, max(0, len(body)-room))
 		body = body[m.scroll:]
@@ -256,9 +359,13 @@ func (m *model) render() string {
 	}
 	body = append(body, "", "    "+ColourLegend(m.st))
 
-	// The selected agent's detail fills whatever room the table leaves.
+	// The harness menu, when open, or else the selected agent's detail fills
+	// whatever room the table leaves.
 	room := h - len(top) - len(body) - 3
-	if a := m.selected(); a != nil && room > 3 {
+	if a := m.selected(); a != nil && m.menu != nil {
+		body = append(body, m.st.Dim.Render(strings.Repeat("─", w)))
+		body = append(body, m.menuLines(a)...)
+	} else if a != nil && room > 3 {
 		body = append(body, m.st.Dim.Render(strings.Repeat("─", w)))
 		d := Detail(m.ws, a, w, 12, m.st)
 		if len(d) > room {

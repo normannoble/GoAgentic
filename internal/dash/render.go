@@ -104,14 +104,14 @@ func WaitingCompact(ws *Workspace) string {
 
 // Row is one agent's table cells, unstyled.
 type Row struct {
-	Agent, Live, Started, Health, Session, Next string
+	Agent, Harness, Live, Started, Health, Next string
 	Level                                       Level
 	NextBlocked                                 bool
 }
 
 // MakeRow flattens an agent into table cells.
 func MakeRow(ws *Workspace, a *Agent) Row {
-	r := Row{Agent: a.Name, Live: "—", Started: "—", Level: a.Health.Level}
+	r := Row{Agent: a.Name, Harness: harnessOf(ws, a), Live: "—", Started: "—", Level: a.Health.Level}
 	if a.Retired {
 		r.Agent += " (retired)"
 	}
@@ -126,13 +126,6 @@ func MakeRow(ws *Workspace, a *Agent) Row {
 	r.Health = a.Health.Level.Symbol()
 	if n := len(a.Health.Findings); n > 0 {
 		r.Health += fmt.Sprintf(" %d", n)
-	}
-	if s, ok := a.LastSession(); ok {
-		date := "     "
-		if !s.Date.IsZero() {
-			date = s.Date.Format("01-02")
-		}
-		r.Session = date + " " + s.Title
 	}
 	switch {
 	case a.NextSession != "":
@@ -150,7 +143,7 @@ func MakeRow(ws *Workspace, a *Agent) Row {
 	return r
 }
 
-// columns returns widths for agent, live, started, health, session, next.
+// columns returns widths for agent, harness, live, started, health, next.
 func columns(ws *Workspace, width int) [6]int {
 	agent := len("AGENT")
 	for _, a := range ws.Agents {
@@ -158,16 +151,11 @@ func columns(ws *Workspace, width int) [6]int {
 			agent = n
 		}
 	}
-	w := [6]int{agent, 7, 7, 6, 0, 0}
-	rest := width - (w[0] + w[1] + w[2] + w[3]) - 5*2 - 4 // cursor and attention mark
-	if rest < 30 {
-		rest = 30
+	w := [6]int{agent, len("opencode"), 7, 7, 6, 0}
+	w[5] = width - (w[0] + w[1] + w[2] + w[3] + w[4]) - 5*2 - 4 // cursor and attention mark
+	if w[5] < 30 {
+		w[5] = 30
 	}
-	w[4] = rest * 2 / 5
-	if w[4] > 40 {
-		w[4] = 40
-	}
-	w[5] = rest - w[4]
 	return w
 }
 
@@ -182,7 +170,7 @@ func fit(s string, w int) string {
 // TableHeader and TableRow render the agent table at a given width.
 func TableHeader(ws *Workspace, width int, st Styles) string {
 	w := columns(ws, width)
-	cells := []string{"AGENT", "LIVE", "STARTED", "HEALTH", "LAST SESSION", "NEXT UP"}
+	cells := []string{"AGENT", "HARNESS", "LIVE", "STARTED", "HEALTH", "NEXT UP"}
 	for i := range cells {
 		cells[i] = fit(cells[i], w[i])
 	}
@@ -193,7 +181,7 @@ func TableHeader(ws *Workspace, width int, st Styles) string {
 func TableRow(ws *Workspace, a *Agent, width int, selected bool, st Styles) string {
 	w := columns(ws, width)
 	r := MakeRow(ws, a)
-	live := fit(r.Live, w[1])
+	live := fit(r.Live, w[2])
 	switch r.Live {
 	case "working", "blocked":
 		live = st.OK.Render(live)
@@ -218,10 +206,10 @@ func TableRow(ws *Workspace, a *Agent, width int, selected bool, st Styles) stri
 	}
 	cells := []string{
 		fit(r.Agent, w[0]),
+		fit(r.Harness, w[1]),
 		live,
-		st.Dim.Render(fit(r.Started, w[2])),
-		st.level(r.Level).Render(fit(r.Health, w[3])),
-		fit(r.Session, w[4]),
+		st.Dim.Render(fit(r.Started, w[3])),
+		st.level(r.Level).Render(fit(r.Health, w[4])),
 		next,
 	}
 	marker := "  "
@@ -267,7 +255,7 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 	}
 	add(title)
 
-	var facts []string
+	facts := []string{harnessFact(ws, a)}
 	if a.Live != nil {
 		facts = append(facts, fmt.Sprintf("pane %s %s", a.Live.PaneID, a.Live.State()))
 	}
@@ -411,6 +399,18 @@ func Detail(ws *Workspace, a *Agent, width, maxItems int, st Styles) []string {
 	return out
 }
 
+// harnessFact says which harness the agent opens in and where that is set,
+// with its model if one is configured.
+func harnessFact(ws *Workspace, a *Agent) string {
+	h, source := HarnessSource(ws, a)
+	where := map[string]string{"agent": "set for this agent", "workspace": "workspace default", "default": "default"}[source]
+	fact := "harness " + h + " (" + where + ")"
+	if m := modelOf(ws, a); m != "" {
+		fact += " · model " + m
+	}
+	return fact
+}
+
 // wrap breaks text into at most max lines of width w.
 func wrap(text string, w, max int) []string {
 	if w < 20 {
@@ -517,6 +517,7 @@ type JSONAgent struct {
 	LastStarted  *time.Time     `json:"last_started,omitempty"`
 	LastActive   *time.Time     `json:"last_active,omitempty"`
 	LastSession  *Session       `json:"last_session,omitempty"`
+	Harness      string         `json:"harness"`
 	NextSession  string         `json:"next_session,omitempty"`
 	NextUp       *Item          `json:"next_up,omitempty"`
 	ForPrincipal []Item         `json:"for_principal,omitempty"`
@@ -531,6 +532,7 @@ func WriteJSON(w io.Writer, ws *Workspace) error {
 	for _, a := range ws.Agents {
 		j := JSONAgent{
 			Name: a.Name, Title: a.Title, Retired: a.Retired,
+			Harness:      harnessOf(ws, a),
 			NextSession:  a.NextSession,
 			ForPrincipal: a.ForPrincipal(ws.Principal),
 			OpenCounts:   a.Counts(),

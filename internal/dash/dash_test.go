@@ -3,6 +3,7 @@ package dash
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 
 	"github.com/charmbracelet/x/ansi"
 	"os"
@@ -402,7 +403,9 @@ func TestSnapshotAndJSON(t *testing.T) {
 		"1 scheduled run(s) not yet read",
 		"» #3 ship the thing → #5 tidy", // the agent's own plan wins
 		"(no open actions)",
-		"09-27 New session",
+		"New session", // last session, in the detail now
+		"AGENT   HARNESS   LIVE",
+		"harness claude (default)",
 		"Open actions — P1 1 · P2 3 · P3 0",
 		"Parked — 1",
 		"P3 #8   Someday",
@@ -425,7 +428,7 @@ func TestSnapshotAndJSON(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Agents[0].NextUp == nil || got.Agents[0].NextUp.ID != "3" || got.Agents[1].Health != "fail" {
+	if got.Agents[0].NextUp == nil || got.Agents[0].NextUp.ID != "3" || got.Agents[1].Health != "fail" || got.Agents[0].Harness != "claude" {
 		t.Errorf("json = %s", buf.String())
 	}
 }
@@ -578,7 +581,7 @@ esac
 	t.Setenv("HERDR_WORKSPACE_ID", "w1")
 
 	sum, err := Launch(&Workspace{Root: "/ws"}, &Agent{Name: "Varro"})
-	if err != nil || sum != "started Varro in a new tab" {
+	if err != nil || sum != "started Varro (claude) in a new tab" {
 		t.Fatalf("launch = %q, %v", sum, err)
 	}
 	calls, _ := os.ReadFile(logPath)
@@ -743,5 +746,144 @@ func TestHeadlineShortensLongActions(t *testing.T) {
 		if got := (Item{Action: action}).Headline(); got != want {
 			t.Errorf("Headline(%q) = %q, want %q", action, got, want)
 		}
+	}
+}
+
+func TestHarnessSource(t *testing.T) {
+	ws := &Workspace{Harness: "codex"}
+	for _, c := range []struct {
+		ws          *Workspace
+		agent       string
+		want, where string
+	}{
+		{&Workspace{}, "", "claude", "default"},
+		{&Workspace{Harness: "bogus"}, "", "claude", "default"},
+		{ws, "", "codex", "workspace"},
+		{ws, "pi", "pi", "agent"},
+		{ws, "bogus", "codex", "workspace"},
+	} {
+		h, where := HarnessSource(c.ws, &Agent{Harness: c.agent})
+		if h != c.want || where != c.where {
+			t.Errorf("HarnessSource(%q, %q) = %s, %s; want %s, %s", c.ws.Harness, c.agent, h, where, c.want, c.where)
+		}
+	}
+	a := &Agent{Name: "Bo", Harness: "pi"}
+	if got := harnessFact(&Workspace{Model: "gpt-5"}, a); got != "harness pi (set for this agent) · model gpt-5" {
+		t.Errorf("harnessFact = %q", got)
+	}
+}
+
+func TestHarnessAvailable(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	installed := map[string]bool{"claude": true, "codex": true, "pi": true, "cursor-agent": true}
+	defer func(orig func(string) (string, error)) { lookPath = orig }(lookPath)
+	lookPath = func(cli string) (string, error) {
+		if installed[cli] {
+			return "/bin/" + cli, nil
+		}
+		return "", errors.New("not found")
+	}
+	write := func(path string) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ws := &Workspace{Root: root}
+	write(filepath.Join(root, ".agents/skills/agents-start/SKILL.md")) // codex + cursor, project scope
+	write(filepath.Join(home, ".pi/agent/prompts/agents-start.md"))    // pi, user scope
+
+	want := map[string]string{
+		"claude":   "",
+		"codex":    "",
+		"cursor":   "",
+		"pi":       "",
+		"gemini":   "gemini not installed",
+		"opencode": "opencode not installed",
+	}
+	for h, reason := range want {
+		if ok, got := HarnessAvailable(ws, h); got != reason || ok != (reason == "") {
+			t.Errorf("%s: %v %q, want %q", h, ok, got, reason)
+		}
+	}
+
+	installed["opencode"] = true
+	if _, got := HarnessAvailable(ws, "opencode"); got != "no framework commands here: run harness/install.sh opencode" {
+		t.Errorf("opencode without commands: %q", got)
+	}
+}
+
+func TestLaunchPlanWithPickedHarness(t *testing.T) {
+	ws := &Workspace{Root: "/ws", Harness: "claude", Model: "claude-sonnet-5-5"}
+	a := &Agent{Name: "Sigrid", Live: &LivePane{PaneID: "w1:p3"}}
+
+	// The configured harness keeps its model.
+	_, steps := LaunchPlanWith(ws, a, "claude", "w1")
+	if got := strings.Join(steps[0].Args, " "); got != "agent start sigrid --kind claude --pane w1:p3 -- --model claude-sonnet-5-5 /agents:start sigrid" {
+		t.Errorf("configured: %s", got)
+	}
+	// Another harness drops it and uses its own start command.
+	sum, steps := LaunchPlanWith(ws, a, "pi", "w1")
+	if got := strings.Join(steps[0].Args, " "); got != "agent start sigrid --kind pi --pane w1:p3 -- /agents-start sigrid" {
+		t.Errorf("picked pi: %s", got)
+	}
+	if sum != "started Sigrid (pi) in its pane" {
+		t.Errorf("summary: %q", sum)
+	}
+}
+
+func TestHarnessMenu(t *testing.T) {
+	defer func(orig func(string) (string, error)) { lookPath = orig }(lookPath)
+	lookPath = func(cli string) (string, error) {
+		if cli == "claude" || cli == "codex" {
+			return "/bin/" + cli, nil
+		}
+		return "", errors.New("not found")
+	}
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".agents/skills/agents-start"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".agents/skills/agents-start/SKILL.md"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ws := &Workspace{Root: root, Harness: "codex", Agents: []*Agent{{Name: "Sigrid"}, {Name: "Varro", Live: &LivePane{PaneID: "w1:p9", Running: true}}}}
+	m := &model{ws: ws, st: NewStyles(true), width: 100, height: 40}
+
+	m.key("O")
+	if m.menu == nil || Harnesses[m.menu.cursor] != "codex" {
+		t.Fatalf("menu should open on the configured harness: %+v", m.menu)
+	}
+	out := m.render()
+	for _, want := range []string{"Open Sigrid in", " › codex     workspace default", "gemini    gemini not installed", "↑↓ choose · enter open · esc cancel"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("menu lacks %q:\n%s", want, out)
+		}
+	}
+
+	// An unavailable harness says why and keeps the menu open.
+	m.menuKey("down")
+	if cmd := m.menuKey("enter"); cmd != nil || m.menu == nil || m.status != "✗ gemini: gemini not installed" {
+		t.Errorf("unavailable: status %q, menu %v", m.status, m.menu)
+	}
+	// q closes the menu, not the dashboard.
+	if cmd := m.menuKey("q"); cmd != nil || m.menu != nil {
+		t.Errorf("q should only close the menu")
+	}
+	// An available harness launches and closes the menu.
+	m.key("O")
+	m.menuKey("up")
+	if cmd := m.menuKey("enter"); cmd == nil || m.menu != nil || m.status != "opening Sigrid in claude…" {
+		t.Errorf("launch: status %q, menu %v", m.status, m.menu)
+	}
+
+	// A running agent: no menu, enter switches to it.
+	m.key("down")
+	m.key("O")
+	if m.menu != nil || !strings.Contains(m.status, "already open in pane w1:p9") {
+		t.Errorf("running agent: menu %v, status %q", m.menu, m.status)
 	}
 }

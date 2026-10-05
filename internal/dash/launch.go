@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -33,16 +34,71 @@ func executable(harness string) string {
 	return harness
 }
 
+// Harnesses are the CLIs an agent can open in (conventions § Invocation), in
+// the order the harness menu lists them.
+var Harnesses = []string{"claude", "codex", "gemini", "opencode", "pi", "cursor"}
+
+func knownHarness(h string) bool {
+	for _, k := range Harnesses {
+		if h == k {
+			return true
+		}
+	}
+	return false
+}
+
 // harnessOf is the CLI an agent runs under: its own context.md harness:,
 // else the workspace's, else claude.
 func harnessOf(ws *Workspace, a *Agent) string {
-	for _, h := range []string{a.Harness, ws.Harness} {
-		switch h {
-		case "claude", "codex", "gemini", "opencode", "pi", "cursor":
-			return h
+	h, _ := HarnessSource(ws, a)
+	return h
+}
+
+// HarnessSource is the agent's harness and where it comes from: "agent"
+// (its context.md), "workspace" (the conventions frontmatter) or "default".
+func HarnessSource(ws *Workspace, a *Agent) (harness, source string) {
+	if knownHarness(a.Harness) {
+		return a.Harness, "agent"
+	}
+	if knownHarness(ws.Harness) {
+		return ws.Harness, "workspace"
+	}
+	return "claude", "default"
+}
+
+// commandFiles are the files whose presence means a harness has the
+// framework commands, relative to the workspace root and to HOME
+// (harness/install.sh, project and --user scope). Claude has them through the
+// plugin, so it needs none.
+var commandFiles = map[string][2]string{
+	"codex":    {".agents/skills/agents-start/SKILL.md", ".agents/skills/agents-start/SKILL.md"},
+	"cursor":   {".agents/skills/agents-start/SKILL.md", ".agents/skills/agents-start/SKILL.md"},
+	"gemini":   {".gemini/commands/agents/start.toml", ".gemini/commands/agents/start.toml"},
+	"opencode": {".opencode/commands/agents-start.md", ".config/opencode/commands/agents-start.md"},
+	"pi":       {".pi/prompts/agents-start.md", ".pi/agent/prompts/agents-start.md"},
+}
+
+// lookPath finds a CLI on PATH; a variable so tests can fake it.
+var lookPath = exec.LookPath
+
+// HarnessAvailable says whether an agent of this workspace can open in the
+// harness, and if not, why: the CLI must be installed and the workspace
+// must have the framework commands for it.
+func HarnessAvailable(ws *Workspace, harness string) (ok bool, reason string) {
+	if _, err := lookPath(executable(harness)); err != nil {
+		return false, executable(harness) + " not installed"
+	}
+	files, needs := commandFiles[harness]
+	if !needs {
+		return true, ""
+	}
+	home, _ := os.UserHomeDir()
+	for _, path := range []string{filepath.Join(ws.Root, files[0]), filepath.Join(home, files[1])} {
+		if _, err := os.Stat(path); err == nil {
+			return true, ""
 		}
 	}
-	return "claude"
+	return false, "no framework commands here: run harness/install.sh " + harness
 }
 
 // modelOf is the model an agent runs on: its own context.md model:, else the
@@ -70,10 +126,16 @@ type LaunchStep struct {
 // where the agent is already running, start it again in its leftover shell
 // pane, or start it in a new tab of the current Space.
 func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string, steps []LaunchStep) {
+	return LaunchPlanWith(ws, a, harnessOf(ws, a), herdrWorkspace)
+}
+
+// LaunchPlanWith is LaunchPlan in a harness picked for this launch. The
+// configured model goes along only in the configured harness: a model name
+// for one CLI means nothing to another.
+func LaunchPlanWith(ws *Workspace, a *Agent, harness, herdrWorkspace string) (summary string, steps []LaunchStep) {
 	name := strings.ToLower(a.Name)
-	harness := harnessOf(ws, a)
 	var agentArgs []string
-	if m := modelOf(ws, a); m != "" {
+	if m := modelOf(ws, a); m != "" && harness == harnessOf(ws, a) {
 		agentArgs = []string{"--model", m}
 	}
 	agentArgs = append(agentArgs, startCommand(harness, name))
@@ -90,7 +152,7 @@ func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string,
 			{Args: []string{"agent", "focus", a.Live.PaneID}},
 		}
 	case a.Live != nil:
-		return "started " + a.Name + " in its pane", []LaunchStep{
+		return "started " + a.Name + " (" + harness + ") in its pane", []LaunchStep{
 			{Args: start(a.Live.PaneID), Fallback: []string{"pane", "run", a.Live.PaneID,
 				executable(harness) + " " + strings.Join(typed, " ")}},
 			{Args: []string{"agent", "focus", a.Live.PaneID}},
@@ -100,7 +162,7 @@ func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string,
 		if herdrWorkspace != "" {
 			tab = append(tab, "--workspace", herdrWorkspace)
 		}
-		return "started " + a.Name + " in a new tab", []LaunchStep{
+		return "started " + a.Name + " (" + harness + ") in a new tab", []LaunchStep{
 			{Args: tab, NewPane: true},
 			{Args: start("")},
 		}
@@ -110,11 +172,16 @@ func LaunchPlan(ws *Workspace, a *Agent, herdrWorkspace string) (summary string,
 // Launch opens the agent in Herdr (see LaunchPlan) and returns a one-line
 // result for the status bar.
 func Launch(ws *Workspace, a *Agent) (string, error) {
+	return LaunchWith(ws, a, harnessOf(ws, a))
+}
+
+// LaunchWith is Launch in a harness picked for this launch.
+func LaunchWith(ws *Workspace, a *Agent, harness string) (string, error) {
 	if os.Getenv("HERDR_ENV") != "1" && os.Getenv("HERDR_BIN_PATH") == "" {
 		return "", ErrNoHerdr
 	}
 	bin := herdrBin()
-	summary, steps := LaunchPlan(ws, a, os.Getenv("HERDR_WORKSPACE_ID"))
+	summary, steps := LaunchPlanWith(ws, a, harness, os.Getenv("HERDR_WORKSPACE_ID"))
 	newPane := ""
 	for _, step := range steps {
 		args := step.Args
