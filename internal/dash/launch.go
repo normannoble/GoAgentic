@@ -1,6 +1,7 @@
 package dash
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
+	"time"
 )
 
 // ErrNoHerdr means opening an agent was asked for outside Herdr.
@@ -78,8 +82,56 @@ var commandFiles = map[string][2]string{
 	"pi":       {".pi/prompts/agents-start.md", ".pi/agent/prompts/agents-start.md"},
 }
 
-// lookPath finds a CLI on PATH; a variable so tests can fake it.
-var lookPath = exec.LookPath
+// lookPath finds a CLI on PATH, else on the user's login-shell PATH; a
+// variable so tests can fake it.
+var lookPath = func(cli string) (string, error) {
+	if path, err := exec.LookPath(cli); err == nil {
+		return path, nil
+	}
+	for _, dir := range filepath.SplitList(shellPath()) {
+		path := filepath.Join(dir, cli)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+			return path, nil
+		}
+	}
+	return "", exec.ErrNotFound
+}
+
+// shellPath is the PATH the user's login shell sets up, asked for once.
+// Herdr starts the dashboard as a plugin with the system PATH only, while
+// the CLIs often live where the shell's startup files put them (nvm,
+// ~/.local/bin, Homebrew); Herdr starts agents through that shell, so that
+// is where they must be found. Only PATH is taken: a CLI name may be an
+// alias or function in the shell, which says nothing about the file. Run
+// starts this in the background so the menu does not wait for it.
+var shellPath = sync.OnceValue(probeShellPath)
+
+func probeShellPath() string {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/sh"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, shell, "-lic", `printf '\nGOAGENTIC_PATH=%s\n' "$PATH"`)
+	// No controlling terminal: an interactive shell must not touch the
+	// dashboard's.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	out, _ := cmd.Output()
+	return parseShellPath(out)
+}
+
+// parseShellPath finds the PATH line, skipping anything else the shell's
+// startup files print.
+func parseShellPath(out []byte) string {
+	path := ""
+	for _, line := range strings.Split(string(out), "\n") {
+		if rest, ok := strings.CutPrefix(line, "GOAGENTIC_PATH="); ok {
+			path = strings.TrimSpace(rest)
+		}
+	}
+	return path
+}
 
 // HarnessAvailable says whether an agent of this workspace can open in the
 // harness, and if not, why: the CLI must be installed and the workspace

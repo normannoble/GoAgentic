@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -885,5 +886,40 @@ func TestHarnessMenu(t *testing.T) {
 	m.key("O")
 	if m.menu != nil || !strings.Contains(m.status, "already open in pane w1:p9") {
 		t.Errorf("running agent: menu %v, status %q", m.menu, m.status)
+	}
+}
+
+// The dashboard runs as a Herdr plugin with the system PATH only; the CLIs
+// are found on the user's login-shell PATH instead.
+func TestLookPathUsesTheLoginShellPath(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "nvm", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "codex"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "pi"), []byte("not executable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Startup noise, an alias line, then the PATH.
+	shell := filepath.Join(dir, "fakeshell")
+	script := "#!/bin/sh\necho 'Welcome back'\necho \"alias claude='claude --flag'\"\nprintf '\\nGOAGENTIC_PATH=%s\\n' '/nowhere:" + bin + "'\n"
+	if err := os.WriteFile(shell, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SHELL", shell)
+	t.Setenv("PATH", dir) // nothing on the plugin's own PATH
+
+	defer func(orig func() string) { shellPath = orig }(shellPath)
+	shellPath = sync.OnceValue(probeShellPath)
+	if path, err := lookPath("codex"); err != nil || path != filepath.Join(bin, "codex") {
+		t.Errorf("codex via the shell PATH = %q, %v", path, err)
+	}
+	for _, cli := range []string{"claude", "pi", "gemini"} {
+		if path, err := lookPath(cli); err == nil {
+			t.Errorf("%s should not be found, got %q", cli, path)
+		}
 	}
 }

@@ -23,6 +23,7 @@ func Run(ctx context.Context, scan ScanFunc, in io.Reader, out io.Writer, noColo
 	m := &model{scan: scan, st: NewStyles(noColor), all: all, width: 120, height: 40,
 		quitAfterLaunch: os.Getenv("HERDR_PLUGIN_ENTRYPOINT_ID") == "peek"}
 	m.ws, m.err = scan(all)
+	go shellPath() // warm the harness menu's CLI lookup
 	p := tea.NewProgram(m, tea.WithContext(ctx), tea.WithInput(in), tea.WithOutput(out))
 	_, err := p.Run()
 	if err == tea.ErrProgramKilled && ctx.Err() != nil {
