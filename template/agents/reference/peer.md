@@ -28,6 +28,10 @@ At startup (`/agents:start`, step 0b) the router, when `HERDR_ENV` is 1:
 
 **Peers** = entries of `herdr agent list` whose `cwd` is under this workspace root and whose Herdr name matches a framework agent here. Agents in other roots do not exist as far as this workspace is concerned. `/agents:list` and `/agents:status` show a **Live** column from this; `/agents:doctor` warns when one agent is live in two panes (two sessions fighting over one tracker).
 
+## Where an agent lives in T3 Code
+
+In T3 Code an agent lives in a **thread**, titled `<Name> - <Role title>` (a human session), `<Name> - Peer` or `<Name> - Task`. The thread list stands in for `herdr agent list`, and `/agents:ask` and `/agents:delegate` open the target in a fresh thread rather than a pane. The full map is `reference/t3.md`.
+
 ## The exchange
 
 Files, not screens. Claude Code draws on the terminal's alternate screen, so Herdr cannot reliably scrape a full reply. The reply always goes in the request file.
@@ -82,6 +86,6 @@ It should not happen under this design. If a message starting with `[peer reques
 
 Asking a peer is an action type in `autonomy.md`. Suggested default: **L3 (Intend)** for same-workspace requests that only read or draft. Anything that would make the target act externally is not a peer request; ask {{PRINCIPAL}}.
 
-## Outside Herdr
+## Outside Herdr and T3
 
-`/agents:ask` says "Not inside Herdr" and stops. There is no headless fallback by design: peer exchanges are meant to be visible in a pane {{PRINCIPAL}} can watch and interrupt.
+`/agents:ask` says "Not inside Herdr or T3" and stops. There is no headless fallback by design: peer exchanges are meant to be visible in a pane or thread {{PRINCIPAL}} can watch and interrupt.

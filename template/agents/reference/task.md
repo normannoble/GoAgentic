@@ -127,6 +127,7 @@ Started by the lead as `/agents:start <target> task <file>` in a fresh pane. The
 
    **Every time you start a turn** (the first one, and each time the lead prompts you to continue), run `date` and compare it with `due:`. Past due: stop work, log `Timebox reached at HH:MM: <what is done, what is not>`, set `status: question`, and end your turn. Do not start new work past due, even to finish.
 2. Do the work under your own ladder (§ 3). Use your own worktree for code (master § Code Repositories). Keep your own tracker row for the work: add one if none exists, with the work order's path in the Action cell.
+   In T3 Code, "end your turn" is literal: ending it is what wakes the lead. Never hold a turn open with a sleep loop, whether waiting for the lead or for a deploy or CI run; log what you are waiting on and end the turn (`reference/t3.md` § Waiting).
 3. **When you need an answer:** write `Qn: …` in the Log (`Qn (needs {{PRINCIPAL}}): …` when § 3 says only {{PRINCIPAL}} can give it), set `status: question`, and **end your turn**. The lead answers in the Log and prompts you to continue. Never guess past an approval gate to keep moving.
 4. **When you are done:** run the Session End Protocol (`reference/session-end.md`) Steps 1–7 with these differences: the memory goes to `memory/tasks/YYYY-MM-DD-<topic>.md` (not `memory/sessions/`) with `type: task` and a `task: <work order path>` line in its frontmatter, and is not added to MEMORY.md; if `memory/tasks/` then holds more than 10 files, move the oldest to `memory/archive/tasks/`; Step 6 (project files) only for files the work order names; Step 7 stages your own paths, which include this work order (it lives in your `peer/` folder). Then write the hand-back in the Log (what was delivered, each acceptance criterion met or not, commit/PR ids) and set `status: review`. End your turn.
 5. If you cannot continue (a blocker no answer fixes, or the work turns out to be outside the outcome), log it as a question; the lead decides whether to stop.
@@ -149,6 +150,8 @@ The skill (`skills/delegate/SKILL.md`) checks, in order, and refuses with one li
 All checks run before anything is written: a refused delegation leaves no file and no pane. Then it writes the work order, opens a fresh pane (`<Target> - Task`, in the lead's tab), starts the target as `<target>-task`, prompts `<start> <target> task <file>` **without waiting**, sets `task_pane:`, and returns.
 
 ### Watching
+
+In T3 Code, read every Herdr command in this section through the map in `reference/t3.md`: the background `--wait` on `thread start` or `thread send` stands in for `herdr agent wait`, `thread show` for `herdr agent read`, and settling the thread (`t3_thread_organize`, `action: settle`) for `herdr pane close`.
 
 After the start prompt, wait for the pane to reach `working` (`herdr agent wait <target>-task --until working --timeout 60000`): a fresh pane starts idle. Then run `herdr agent wait <target>-task --until idle --until done --until blocked` in the background (Claude Code: Bash with `run_in_background`), so you are woken when the task pane stops. Then read the work order:
 

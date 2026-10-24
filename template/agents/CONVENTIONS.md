@@ -44,6 +44,7 @@ Long procedures live beside this file in `reference/`. In plugin mode that is `$
 | `index-maintenance.md` | Updating an INDEX.md at session end |
 | `peer.md` | Asking another agent for something (`/agents:ask`), running as a peer session, or anything Herdr |
 | `task.md` | Setting up a lead, delegating work (`/agents:delegate`), or running as a task session |
+| `t3.md` | Running inside T3 Code (`T3CODE_CLI_PATH` set): how the Herdr steps in `peer.md` and `task.md` map onto T3 threads |
 
 ---
 

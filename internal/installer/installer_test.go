@@ -213,8 +213,8 @@ func TestApplyInstallsExpectedFilesAndSkillMirrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 46 {
-		t.Fatalf("written = %d, want 46: %v", len(result.Written), result.Written)
+	if len(result.Written) != 47 {
+		t.Fatalf("written = %d, want 47: %v", len(result.Written), result.Written)
 	}
 	philosophy, _ := ReadAsset("PHILOSOPHY.md")
 	if !bytes.Equal(readFile(t, filepath.Join(target, "PHILOSOPHY.md")), philosophy) {
@@ -260,7 +260,7 @@ func TestIdenticalRerunIsTrueNoop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Written) != 0 || second.Counts()["unchanged"] != 46 {
+	if len(result.Written) != 0 || second.Counts()["unchanged"] != 47 {
 		t.Fatalf("rerun wrote %v, counts=%v", result.Written, second.Counts())
 	}
 	if !before.ModTime().Equal(after.ModTime()) {

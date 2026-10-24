@@ -1,7 +1,7 @@
 ---
 description: Health review of the agent workspace — startup cost per agent, tracker hygiene, memory bloat, staleness, missing files, conventions drift. Reports findings by severity and recommends the exact next commands. Read-only. Use /agents:doctor or /agents:doctor <name>.
 disable-model-invocation: true
-allowed-tools: Read, Glob, Grep, Bash(date), Bash(wc), Bash(ls), Bash(git status), Bash(git log), Bash(echo:*), Bash(herdr agent list:*)
+allowed-tools: Read, Glob, Grep, Bash(date), Bash(wc), Bash(ls), Bash(git status), Bash(git log), Bash(echo:*), Bash(herdr agent list:*), Bash("$T3CODE_CLI_PATH" thread list:*)
 argument-hint: [name|scope|all]
 ---
 
@@ -84,7 +84,7 @@ Always name the **single biggest file** and its share. That is the fix.
 - ⚠️ `harness:` in `agents/CONVENTIONS.md` frontmatter, or in any agent's `context.md` frontmatter, is set to a CLI that is not on PATH (`claude`, `codex`, `gemini`, `opencode`, `pi`, or `cursor`, whose CLI is `cursor-agent`), or to a name that is none of these: ticks and peer panes would fail.
 - ℹ️ `git status --short agents/` shows uncommitted changes (list the count only).
 - ⚠️ two or more active agents' `tools.md` (or `context.md`) name the same code repository path outside the workspace and it is not a `<repo>.wt/<agent>` worktree path: they share one checkout. Fix: each owner moves to its own worktree (master conventions § Code Repositories).
-- ❌ (Herdr only: run `echo "$HERDR_ENV"`; if `1`) `herdr agent list` shows the same agent name live in two or more panes whose `cwd` is under this root — two sessions share one tracker. Name the panes. The same holds when `<name>` and `<name>-task` are both live (a human session beside a delegated task). Ignore other roots.
+- ❌ (Herdr only: run `echo "$HERDR_ENV"`; if `1`) `herdr agent list` shows the same agent name live in two or more panes whose `cwd` is under this root — two sessions share one tracker. Name the panes. The same holds when `<name>` and `<name>-task` are both live (a human session beside a delegated task). Ignore other roots. In T3 Code (`T3CODE_CLI_PATH` set): the same holds when `"$T3CODE_CLI_PATH" thread list --json` shows two or more `<Name> - …` threads that are live (t3.md: a `<Name> - Peer` or `<Name> - Task` thread with `status: running`, or any other `<Name> - …` thread, a human session, with `settled: false`).
 - ⚠️ a lead has more work orders in flight (`open`, `working`, `question`, `review`) than `task-limit` (default 3).
 - ⚠️ a work order whose `outcome:` names an outcome file that does not exist, or a lead's `outcomes/*.md` with `status: active` and no work order in flight and no `## Next` line (stalled or unfinished bookkeeping).
 - ⚠️ a work order in flight whose `due:` has passed, or whose `rounds` is 5 or more: its lead should have stopped it and asked the principal (`reference/task.md` § 6).

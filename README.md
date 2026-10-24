@@ -45,8 +45,8 @@ This gives every project these skills:
 | `/agents:next` | The single next best action across the org |
 | `/agents:doctor` | Health review: startup cost, tracker and memory hygiene, staleness. Read-only, recommends the next commands |
 | `/agents:harness` | Show which CLI each agent runs under — peer sessions and ticks — and whether it is installed. Read-only |
-| `/agents:ask` | Ask another agent in the same workspace (Herdr only): fresh pane, peer session, written reply, pane closed |
-| `/agents:delegate` | A lead hands one of its members a work order (Herdr only): the member does the work in its own pane under its own autonomy, asks the lead its questions, hands back for review |
+| `/agents:ask` | Ask another agent in the same workspace (Herdr or T3 Code): fresh pane, peer session, written reply, pane closed |
+| `/agents:delegate` | A lead hands one of its members a work order (Herdr or T3 Code): the member does the work in its own pane under its own autonomy, asks the lead its questions, hands back for review |
 | `/agents:schedule` | Unattended tasks: `add`, `list`, `remove`, `enable`, `disable`, `status`, `install` the hourly launchd/cron timer. A gate script runs Claude only when a task is due |
 
 Then, in the repo where you want agents:
@@ -338,6 +338,10 @@ Ticks and peer sessions never commit, never send anything, and stay at autonomy 
 ### Herdr
 
 Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and tab `<Name> - <Role>`, so the sidebar shows who is live. Scope is the repo root: `/agents:list`, `/agents:status`, and `/agents:doctor` show only live agents under the same root. `/agents:ask <name> "<request>"` opens a fresh pane, runs the target as a peer session, waits for its written reply in `agents/<Name>/peer/`, and closes the pane. Protocol: `template/agents/reference/peer.md`. Outside Herdr everything degrades to a no-op. For a live view of every agent in a Space, see [Dashboard](#dashboard).
+
+### T3 Code
+
+Inside T3 Code (`T3CODE_CLI_PATH` set, `HERDR_ENV` empty) the same works with threads instead of panes. The agent renames its thread `<Name> - <Role>`; `/agents:ask` and `/agents:delegate` open the target in a fresh thread titled `<Name> - Peer` or `<Name> - Task` through T3's `t3 thread` command, and wait for it to end its turn; `/agents:list`, `/agents:status` and `/agents:doctor` read live agents from `t3 thread list`. Members run on Claude Code only for now, and the dashboard stays Herdr only. Map: `template/agents/reference/t3.md`.
 
 ### Dashboard
 
