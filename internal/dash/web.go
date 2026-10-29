@@ -336,6 +336,9 @@ type webAgent struct {
 	CanStart bool
 	StartURL string
 	Harness  string
+	// StartsIn is where Start opens it: "a new Herdr tab" or "a new T3
+	// Code thread".
+	StartsIn string
 	// Loading: a session is starting and has not finished its start-up
 	// turn; the page shows LoadingText with a spinner instead of the chat.
 	// Prompt says it stopped at a prompt in its pane instead.
@@ -729,6 +732,10 @@ func stopped(ws *Workspace, a *Agent, wa *webAgent) {
 	wa.Harness = harnessOf(ws, a)
 	if ok, why := HarnessAvailable(ws, wa.Harness); ok {
 		wa.CanStart, wa.StartURL = true, "/w/"+ws.Name+"/"+a.Name+"/start"
+		wa.StartsIn = "a new Herdr tab"
+		if t3, _ := startsInT3(ws); t3 {
+			wa.StartsIn = "a new T3 Code thread"
+		}
 	} else {
 		wa.SendNote = a.Name + " is not running, and cannot start in " + wa.Harness + ": " + why + "."
 	}

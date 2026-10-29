@@ -49,6 +49,7 @@ async function refresh(force) {
   if (typing) main.querySelector("form.send textarea")?.focus();
   for (const key of open) main.querySelector(`details[data-key="${CSS.escape(key)}"]`)?.setAttribute("open", "");
   chatRestore(st);
+  restoreDraft();
   renderThumbs();
 }
 // Every 5 s, or every 1.5 s while an agent is starting, so its chat shows
@@ -84,7 +85,7 @@ main.addEventListener("submit", async e => {
     if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
     const ta = form.querySelector("textarea");
     if (ta) ta.value = "";
-    if (form.classList.contains("send")) { pending = []; renderThumbs(); }
+    if (form.classList.contains("send")) { pending = []; renderThumbs(); clearDraft(form); }
     if (form.classList.contains("send")) document.getElementById("chat")?.scrollTo(0, 1e9);
     await refresh(true);
   } catch (err) {
@@ -103,6 +104,7 @@ function addImages(files) {
   if (!add.length || !main.querySelector("form.send")) return false;
   pending = pending.concat(add).slice(0, 6);
   renderThumbs();
+  saveImages();
   main.querySelector("form.send textarea")?.focus();
   return true;
 }
@@ -120,11 +122,48 @@ function renderThumbs() {
     x.type = "button";
     x.textContent = "×";
     x.title = "Remove";
-    x.onclick = () => { pending.splice(i, 1); renderThumbs(); };
+    x.onclick = () => { pending.splice(i, 1); renderThumbs(); saveImages(); };
     t.append(img, x);
     return t;
   }));
 }
+// A message being written, and its screenshots, are kept per agent in the
+// tab's session storage, so moving to another agent and back loses nothing.
+const draftKey = () => { const f = main.querySelector("form.send"); return f && "draft:" + f.getAttribute("action"); };
+function saveText() {
+  const k = draftKey(), ta = main.querySelector("form.send textarea");
+  if (!k || !ta) return;
+  try { ta.value ? sessionStorage.setItem(k, ta.value) : sessionStorage.removeItem(k); } catch {}
+}
+async function saveImages() {
+  const k = draftKey();
+  if (!k) return;
+  const urls = await Promise.all(pending.map(f => new Promise(ok => {
+    const r = new FileReader();
+    r.onload = () => ok({name: f.name, type: f.type, url: r.result});
+    r.readAsDataURL(f);
+  })));
+  try { urls.length ? sessionStorage.setItem(k + ":images", JSON.stringify(urls)) : sessionStorage.removeItem(k + ":images"); } catch {}
+}
+let restoredFor = null;
+async function restoreDraft() {
+  const k = draftKey(), ta = main.querySelector("form.send textarea");
+  if (!k || !ta) return;
+  const text = sessionStorage.getItem(k);
+  if (text && !ta.value) ta.value = text;
+  if (restoredFor === k) return; // screenshots come back once per page
+  restoredFor = k;
+  const saved = JSON.parse(sessionStorage.getItem(k + ":images") || "[]");
+  if (!saved.length || pending.length) return;
+  pending = await Promise.all(saved.map(async s => new File([await (await fetch(s.url)).blob()], s.name || "screenshot.png", {type: s.type})));
+  renderThumbs();
+}
+function clearDraft(form) {
+  const k = "draft:" + form.getAttribute("action");
+  try { sessionStorage.removeItem(k); sessionStorage.removeItem(k + ":images"); } catch {}
+}
+main.addEventListener("input", e => { if (e.target.matches?.("form.send textarea")) saveText(); });
+restoreDraft();
 function sendBody(form, submitter) {
   const data = new FormData(form);
   if (submitter?.name) data.set(submitter.name, submitter.value);
@@ -377,9 +416,9 @@ main.addEventListener("keydown", e => {
 {{end}}{{if or .Loading .Prompt .Wrapping}}{{else if .CanSend}}<div class="composer"><form class="answer send" method="post" action="{{.SendURL}}">
   <textarea name="text" rows="2" maxlength="4000" placeholder="Message {{.Name}} — drop or paste screenshots" aria-label="Message {{.Name}}"></textarea>
   <div class="thumbs"></div>
-  <div class="row"><button type="submit">Send</button> <label class="attach" title="Add screenshots">📎<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label> <span class="dim hint">⌘/Ctrl-Enter · typed into its pane; images go as file paths</span> <span class="status"></span></div>
+  <div class="row"><button type="submit">Send</button> <label class="attach" title="Add screenshots">📎<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label> <span class="dim hint">⌘/Ctrl-Enter · typed into its session; images go as file paths</span> <span class="status"></span></div>
 </form></div>{{else if .CanStart}}<form class="answer start" method="post" action="{{.StartURL}}">
-  <div class="row"><button type="submit">Start {{.Name}}</button> <span class="dim hint">Opens it in a new Herdr tab ({{.Harness}}) and runs its start; your view stays put.</span> <span class="status{{if .StartError}} error{{end}}">{{.StartError}}</span></div>
+  <div class="row"><button type="submit">Start {{.Name}}</button> <span class="dim hint">Opens it in {{.StartsIn}} ({{.Harness}}) and runs its start; your view stays put.</span> <span class="status{{if .StartError}} error{{end}}">{{.StartError}}</span></div>
 </form>{{else}}<p class="dim send-note">{{.SendNote}}</p>{{end}}
 {{if and .WrapStopped .CloseURL}}<form class="answer close" method="post" action="{{.CloseURL}}" data-confirm="Close {{.Name}}'s pane without a finished wrap? Anything it has not recorded is lost.">
   <input type="hidden" name="force" value="1">
