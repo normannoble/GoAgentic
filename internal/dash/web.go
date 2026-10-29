@@ -336,6 +336,9 @@ type webAgent struct {
 	CanStart bool
 	StartURL string
 	Harness  string
+	// StartsIn is where Start opens it: "a new Herdr tab" or "a new T3
+	// Code thread".
+	StartsIn string
 	// Loading: a session is starting and has not finished its start-up
 	// turn; the page shows LoadingText with a spinner instead of the chat.
 	// Prompt says it stopped at a prompt in its pane instead.
@@ -715,7 +718,7 @@ func (s *webServer) send(w http.ResponseWriter, r *http.Request) {
 	text = withImages(text, paths)
 	prompt := s.src.Prompt
 	if prompt == nil {
-		prompt = herdrPrompt
+		prompt = livePrompt
 	}
 	if err := prompt(a.Live.PaneID, text); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -729,6 +732,10 @@ func stopped(ws *Workspace, a *Agent, wa *webAgent) {
 	wa.Harness = harnessOf(ws, a)
 	if ok, why := HarnessAvailable(ws, wa.Harness); ok {
 		wa.CanStart, wa.StartURL = true, "/w/"+ws.Name+"/"+a.Name+"/start"
+		wa.StartsIn = "a new Herdr tab"
+		if t3, _ := startsInT3(ws); t3 {
+			wa.StartsIn = "a new T3 Code thread"
+		}
 	} else {
 		wa.SendNote = a.Name + " is not running, and cannot start in " + wa.Harness + ": " + why + "."
 	}
@@ -946,7 +953,7 @@ func (s *webServer) close(w http.ResponseWriter, r *http.Request) {
 	s.startMu.Unlock()
 	prompt := s.src.Prompt
 	if prompt == nil {
-		prompt = herdrPrompt
+		prompt = livePrompt
 	}
 	if err := prompt(a.Live.PaneID, frameworkCommand(a.Live.Agent, "wrap")); err != nil {
 		s.startMu.Lock()
@@ -996,6 +1003,9 @@ func (s *webServer) watchClose(wsName, agent, key string) {
 func (s *webServer) closePane(pane string) error {
 	if s.src.ClosePane != nil {
 		return s.src.ClosePane(pane)
+	}
+	if IsT3Pane(pane) {
+		return t3Close(pane)
 	}
 	out, err := exec.Command(herdrBin(), "pane", "close", pane).CombinedOutput()
 	if err != nil {
@@ -1120,6 +1130,14 @@ func sessionPane(p *LivePane) bool {
 		}
 	}
 	return true
+}
+
+// livePrompt submits text to a Herdr pane or a T3 thread.
+func livePrompt(pane, text string) error {
+	if IsT3Pane(pane) {
+		return t3Prompt(pane, text)
+	}
+	return herdrPrompt(pane, text)
 }
 
 // herdrPrompt submits text to a pane with `herdr agent prompt`. Herdr writes

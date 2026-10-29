@@ -247,14 +247,50 @@ func Launch(ws *Workspace, a *Agent) (string, error) {
 // LaunchInBackground opens a stopped agent for the web page: in a new tab
 // of the Herdr Space the workspace's panes are in (else the current one),
 // leaving the principal's view where it is.
+//
+// The workspace runs in T3 Code instead when Herdr is not running, or when
+// its live sessions are T3 threads and none are Herdr panes; then the agent
+// starts in a new T3 thread.
 func LaunchInBackground(ws *Workspace, a *Agent) (string, error) {
-	space := os.Getenv("HERDR_WORKSPACE_ID")
-	if panes, err := listHerdrPanes(herdrBin()); err == nil {
-		if id := spaceOf(sidebarRoots(panes), ws.Root); id != "" {
-			space = id
-		}
+	t3, space := startsInT3(ws)
+	if t3 {
+		return t3Launch(ws, a)
 	}
 	return launch(ws, a, space, true)
+}
+
+// startsInT3 is whether a Start for this workspace opens a T3 thread, and
+// otherwise the Herdr Space it opens in.
+func startsInT3(ws *Workspace) (bool, string) {
+	space := os.Getenv("HERDR_WORKSPACE_ID")
+	panes, herdrErr := listHerdrPanes(herdrBin())
+	inSpace := false
+	if herdrErr == nil {
+		if id := spaceOf(sidebarRoots(panes), ws.Root); id != "" {
+			space, inSpace = id, true
+		}
+	}
+	return useT3(ws, herdrErr == nil, inSpace), space
+}
+
+// useT3 picks T3 Code for a launch: t3 is installed, and Herdr is down or
+// holds none of this workspace's panes while T3 holds some of its threads.
+func useT3(ws *Workspace, herdrUp, herdrHasWorkspace bool) bool {
+	if _, err := t3Bin(); err != nil {
+		return false
+	}
+	if !herdrUp {
+		return true
+	}
+	if herdrHasWorkspace {
+		return false
+	}
+	for _, p := range ws.Panes {
+		if IsT3Pane(p.PaneID) {
+			return true
+		}
+	}
+	return false
 }
 
 // spaceOf is the Herdr Space whose panes sit mostly in root; the lowest id
