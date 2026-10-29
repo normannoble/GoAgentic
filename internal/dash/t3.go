@@ -147,7 +147,7 @@ func t3Read(pane string) (string, error) {
 // t3Close cannot settle a thread: the t3 CLI has no command for it yet, so
 // the principal settles it in T3.
 func t3Close(pane string) error {
-	return fmt.Errorf("settle the thread in T3 Code: the t3 CLI cannot close %s", t3Thread(pane))
+	return errors.New("settle its thread in T3 Code to close it; the t3 CLI cannot settle threads yet")
 }
 
 // t3Launch starts the agent in a new T3 thread of the workspace's project,
