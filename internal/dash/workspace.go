@@ -68,6 +68,9 @@ type Options struct {
 	Now time.Time
 	// Herdr lists live agent panes; nil skips the Live column.
 	Herdr func() ([]LivePane, error)
+	// T3 lists the live T3 Code threads of the workspace at root as panes;
+	// nil skips T3. With both set, Herdr panes and T3 threads are merged.
+	T3 func(root string) ([]LivePane, error)
 	// Transcripts is the Claude Code projects directory
 	// (~/.claude/projects); empty skips "last started".
 	Transcripts string
@@ -124,12 +127,22 @@ func Scan(root string, opts Options) (*Workspace, error) {
 		ws.Agents = append(ws.Agents, a)
 	}
 
+	var panes []LivePane
 	if opts.Herdr != nil {
-		if panes, err := opts.Herdr(); err == nil {
+		if p, err := opts.Herdr(); err == nil {
 			ws.Live = true
-			ws.Panes = panes
-			attachLive(ws, panes)
+			panes = append(panes, p...)
 		}
+	}
+	if opts.T3 != nil {
+		if p, err := opts.T3(root); err == nil {
+			ws.Live = true
+			panes = append(panes, p...)
+		}
+	}
+	if ws.Live {
+		ws.Panes = panes
+		attachLive(ws, panes)
 	}
 	if opts.Transcripts != "" {
 		cache := opts.Cache

@@ -715,7 +715,7 @@ func (s *webServer) send(w http.ResponseWriter, r *http.Request) {
 	text = withImages(text, paths)
 	prompt := s.src.Prompt
 	if prompt == nil {
-		prompt = herdrPrompt
+		prompt = livePrompt
 	}
 	if err := prompt(a.Live.PaneID, text); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -946,7 +946,7 @@ func (s *webServer) close(w http.ResponseWriter, r *http.Request) {
 	s.startMu.Unlock()
 	prompt := s.src.Prompt
 	if prompt == nil {
-		prompt = herdrPrompt
+		prompt = livePrompt
 	}
 	if err := prompt(a.Live.PaneID, frameworkCommand(a.Live.Agent, "wrap")); err != nil {
 		s.startMu.Lock()
@@ -996,6 +996,9 @@ func (s *webServer) watchClose(wsName, agent, key string) {
 func (s *webServer) closePane(pane string) error {
 	if s.src.ClosePane != nil {
 		return s.src.ClosePane(pane)
+	}
+	if IsT3Pane(pane) {
+		return t3Close(pane)
 	}
 	out, err := exec.Command(herdrBin(), "pane", "close", pane).CombinedOutput()
 	if err != nil {
@@ -1120,6 +1123,14 @@ func sessionPane(p *LivePane) bool {
 		}
 	}
 	return true
+}
+
+// livePrompt submits text to a Herdr pane or a T3 thread.
+func livePrompt(pane, text string) error {
+	if IsT3Pane(pane) {
+		return t3Prompt(pane, text)
+	}
+	return herdrPrompt(pane, text)
 }
 
 // herdrPrompt submits text to a pane with `herdr agent prompt`. Herdr writes

@@ -62,13 +62,21 @@ func (s *webServer) activityOf(a *Agent) *activity {
 	}
 	read := s.src.ReadPane
 	if read == nil {
-		read = herdrRead
+		read = liveRead
 	}
 	text, err := read(a.Live.PaneID)
 	if err != nil {
 		return nil
 	}
 	return parseActivity(text)
+}
+
+// liveRead is a Herdr pane's last lines or a T3 thread's latest messages.
+func liveRead(pane string) (string, error) {
+	if IsT3Pane(pane) {
+		return t3Read(pane)
+	}
+	return herdrRead(pane)
 }
 
 // herdrRead is the pane's last lines, from `herdr pane read`.
