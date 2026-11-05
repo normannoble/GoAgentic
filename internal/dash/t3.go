@@ -157,11 +157,15 @@ func t3Launch(ws *Workspace, a *Agent) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	harness := harnessOf(ws, a)
+	if err := t3CanStart(harness); err != nil {
+		return "", fmt.Errorf("%s cannot start in T3 Code: %w", a.Name, err)
+	}
 	title := a.Name
 	if a.Title != "" {
 		title += " - " + a.Title
 	}
-	cmd := frameworkCommand("claude", "start") + " " + a.Name
+	cmd := frameworkCommand(harness, "start") + " " + a.Name
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, bin, "thread", "start", "--title", title, ws.Root, cmd).CombinedOutput()
@@ -169,4 +173,16 @@ func t3Launch(ws *Workspace, a *Agent) (string, error) {
 		return "", fmt.Errorf("t3 thread start: %s", strings.TrimSpace(string(out)))
 	}
 	return a.Name + " started in T3 Code", nil
+}
+
+// t3CanStart says whether the dashboard can start an agent of this harness
+// in a T3 thread. A thread starts on the project's default provider, Claude:
+// t3 thread start takes --provider only together with a --model slug, which
+// the dashboard does not know, so any other harness is refused rather than
+// started in the wrong CLI.
+func t3CanStart(harness string) error {
+	if harness == "" || harness == "claude" {
+		return nil
+	}
+	return fmt.Errorf("its harness is %s, and a T3 thread started from here runs Claude; start it from T3 Code or Herdr", harness)
 }
