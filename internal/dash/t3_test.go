@@ -87,6 +87,12 @@ func TestT3Actions(t *testing.T) {
 	if got := fakeArgs(t, log); got != want {
 		t.Errorf("t3 calls:\n got %q\nwant %q", got, want)
 	}
+	if _, err := t3Launch(ws, &Agent{Name: "Ola", Harness: "codex"}); err == nil || !strings.Contains(err.Error(), "codex") {
+		t.Errorf("a codex agent should be refused in T3, not started in Claude; got %v", err)
+	}
+	if got := fakeArgs(t, log); got != want {
+		t.Errorf("a refused start should not call t3:\n got %q\nwant %q", got, want)
+	}
 	if err := (&webServer{}).closePane("t3:abc"); err == nil || !strings.Contains(err.Error(), "settle") {
 		t.Errorf("closing a thread should ask to settle it in T3, got %v", err)
 	}

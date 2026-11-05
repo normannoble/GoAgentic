@@ -733,8 +733,15 @@ func stopped(ws *Workspace, a *Agent, wa *webAgent) {
 	if ok, why := HarnessAvailable(ws, wa.Harness); ok {
 		wa.CanStart, wa.StartURL = true, "/w/"+ws.Name+"/"+a.Name+"/start"
 		wa.StartsIn = "a new Herdr tab"
-		if t3, _ := startsInT3(ws); t3 {
-			wa.StartsIn = "a new T3 Code thread"
+		// Only ask Herdr where a Start goes when T3 is installed at all.
+		if _, err := t3Bin(); err == nil {
+			if t3, _ := startsInT3(ws); t3 {
+				wa.StartsIn = "a new T3 Code thread"
+				if err := t3CanStart(wa.Harness); err != nil {
+					wa.CanStart, wa.StartURL = false, ""
+					wa.SendNote = a.Name + " is not running, and cannot start in T3 Code: " + err.Error() + "."
+				}
+			}
 		}
 	} else {
 		wa.SendNote = a.Name + " is not running, and cannot start in " + wa.Harness + ": " + why + "."
