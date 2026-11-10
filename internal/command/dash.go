@@ -99,6 +99,7 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 			IncludeRetired: all,
 			Herdr:          dash.HerdrPanes,
 			T3:             dash.T3Threads,
+			Hc:             dash.HcTerminals,
 			Transcripts:    dash.DefaultTranscripts(),
 			Cache:          cache,
 		})
@@ -152,7 +153,7 @@ func runFleet(cmd *cobra.Command, flags *dashFlags) error {
 	}
 	cache := dash.NewTranscriptCache()
 	opts := func(all bool) dash.Options {
-		return dash.Options{IncludeRetired: all, Herdr: dash.HerdrPanes, T3: dash.T3Threads, Transcripts: dash.DefaultTranscripts(), Cache: cache}
+		return dash.Options{IncludeRetired: all, Herdr: dash.HerdrPanes, T3: dash.T3Threads, Hc: dash.HcTerminals, Transcripts: dash.DefaultTranscripts(), Cache: cache}
 	}
 	scan := func(all bool) (*dash.Fleet, error) { return dash.ScanFleet(root, opts(all)) }
 	wsScan := func(dir string) dash.ScanFunc {
@@ -216,7 +217,7 @@ func runWeb(cmd *cobra.Command, flags *dashFlags) error {
 	}
 	cache := dash.NewTranscriptCache()
 	src.Options = func(all bool) dash.Options {
-		return dash.Options{IncludeRetired: all, Herdr: dash.HerdrPanes, T3: dash.T3Threads, Transcripts: dash.DefaultTranscripts(), Cache: cache}
+		return dash.Options{IncludeRetired: all, Herdr: dash.HerdrPanes, T3: dash.T3Threads, Hc: dash.HcTerminals, Transcripts: dash.DefaultTranscripts(), Cache: cache}
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

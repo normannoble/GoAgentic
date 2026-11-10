@@ -241,6 +241,11 @@ func launchPlan(ws *Workspace, a *Agent, herdrWorkspace string, background bool)
 // Launch opens the agent in Herdr (see LaunchPlan) and returns a one-line
 // result for the status bar.
 func Launch(ws *Workspace, a *Agent) (string, error) {
+	if inHcTerminal() || (a.Live != nil && IsHcPane(a.Live.PaneID)) {
+		if _, err := hcBin(); err == nil {
+			return hcLaunch(ws, a)
+		}
+	}
 	return launch(ws, a, os.Getenv("HERDR_WORKSPACE_ID"), false)
 }
 
@@ -252,6 +257,9 @@ func Launch(ws *Workspace, a *Agent) (string, error) {
 // its live sessions are T3 threads and none are Herdr panes; then the agent
 // starts in a new T3 thread.
 func LaunchInBackground(ws *Workspace, a *Agent) (string, error) {
+	if useHc(ws) || (a.Live != nil && IsHcPane(a.Live.PaneID)) {
+		return hcLaunch(ws, a)
+	}
 	t3, space := startsInT3(ws)
 	if t3 {
 		return t3Launch(ws, a)

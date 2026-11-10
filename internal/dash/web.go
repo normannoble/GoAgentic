@@ -733,6 +733,9 @@ func stopped(ws *Workspace, a *Agent, wa *webAgent) {
 	if ok, why := HarnessAvailable(ws, wa.Harness); ok {
 		wa.CanStart, wa.StartURL = true, "/w/"+ws.Name+"/"+a.Name+"/start"
 		wa.StartsIn = "a new Herdr tab"
+		if useHc(ws) {
+			wa.StartsIn = "a new Herdr app tab"
+		}
 		// Only ask Herdr where a Start goes when T3 is installed at all.
 		if _, err := t3Bin(); err == nil {
 			if t3, _ := startsInT3(ws); t3 {
@@ -1014,6 +1017,9 @@ func (s *webServer) closePane(pane string) error {
 	if IsT3Pane(pane) {
 		return t3Close(pane)
 	}
+	if IsHcPane(pane) {
+		return hcClose(pane)
+	}
 	out, err := exec.Command(herdrBin(), "pane", "close", pane).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("herdr pane close: %s", herdrError(out, err))
@@ -1143,6 +1149,9 @@ func sessionPane(p *LivePane) bool {
 func livePrompt(pane, text string) error {
 	if IsT3Pane(pane) {
 		return t3Prompt(pane, text)
+	}
+	if IsHcPane(pane) {
+		return hcPrompt(pane, text)
 	}
 	return herdrPrompt(pane, text)
 }

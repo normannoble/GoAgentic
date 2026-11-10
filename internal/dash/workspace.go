@@ -71,6 +71,9 @@ type Options struct {
 	// T3 lists the live T3 Code threads of the workspace at root as panes;
 	// nil skips T3. With both set, Herdr panes and T3 threads are merged.
 	T3 func(root string) ([]LivePane, error)
+	// Hc lists the live terminals of the Herdr app (herdr-core) as panes;
+	// nil skips them. Merged with the others like T3.
+	Hc func() ([]LivePane, error)
 	// Transcripts is the Claude Code projects directory
 	// (~/.claude/projects); empty skips "last started".
 	Transcripts string
@@ -136,6 +139,12 @@ func Scan(root string, opts Options) (*Workspace, error) {
 	}
 	if opts.T3 != nil {
 		if p, err := opts.T3(root); err == nil {
+			ws.Live = true
+			panes = append(panes, p...)
+		}
+	}
+	if opts.Hc != nil {
+		if p, err := opts.Hc(); err == nil {
 			ws.Live = true
 			panes = append(panes, p...)
 		}

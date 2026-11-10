@@ -76,6 +76,9 @@ func liveRead(pane string) (string, error) {
 	if IsT3Pane(pane) {
 		return t3Read(pane)
 	}
+	if IsHcPane(pane) {
+		return hcRead(pane)
+	}
 	return herdrRead(pane)
 }
 

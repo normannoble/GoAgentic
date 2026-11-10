@@ -341,7 +341,11 @@ Inside [Herdr](https://herdr.dev) (`HERDR_ENV=1`) the agent names its pane and t
 
 ### T3 Code
 
-Inside T3 Code (`T3CODE_CLI_PATH` set, `HERDR_ENV` empty) the same works with threads instead of panes. The agent renames its thread `<Name> - <Role>`; `/agents:ask` and `/agents:delegate` open the target in a fresh thread titled `<Name> - Peer` or `<Name> - Task` through T3's `t3 thread` command, and wait for it to end its turn; `/agents:list`, `/agents:status` and `/agents:doctor` read live agents from `t3 thread list`. Members run on Claude Code only for now, and the dashboard stays Herdr only. Map: `template/agents/reference/t3.md`.
+Inside T3 Code (`T3CODE_CLI_PATH` set, `HERDR_ENV` empty) the same works with threads instead of panes. The agent renames its thread `<Name> - <Role>`; `/agents:ask` and `/agents:delegate` open the target in a fresh thread titled `<Name> - Peer` or `<Name> - Task` through T3's `t3 thread` command, and wait for it to end its turn; `/agents:list`, `/agents:status` and `/agents:doctor` read live agents from `t3 thread list`. Members run on Claude Code only for now. The dashboard shows T3 threads as live sessions beside Herdr panes and can start Claude agents in a new thread. Map: `template/agents/reference/t3.md`.
+
+### Herdr app
+
+The Herdr desktop app runs its terminals in herdr-core (`hc`). The dashboard reads them with `hc ls` and `hc get`, so agents running in the app show as live, and typing a line, Wrap and Close work on them. Run inside the app, it opens agents in a new tab of the same Space (`hc run` with the app's `herdr.space` and `herdr.tab` labels); the web dashboard does the same for a workspace whose live sessions are all in the app. To open the dashboard from the app, bind a key in `~/.config/herdr-app/keys.json`, for example `"cmd-alt-a": {"command": "tab.new", "args": {"name": "Dashboard", "argv": ["goagentic", "dash"]}}`. The app names tabs itself, so a tab the dashboard opens gets a number until you rename it.
 
 ### Dashboard
 
