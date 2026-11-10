@@ -100,7 +100,7 @@ func TestHcActionsAndLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	ws := &Workspace{Root: "/w/acme"}
-	msg, err := Launch(ws, &Agent{Name: "Varro"})
+	msg, err := Launch(ws, &Agent{Name: "Varro", Title: "Platform Lead"})
 	if err != nil || !strings.Contains(msg, "Herdr app tab") {
 		t.Fatalf("launch: %q, %v", msg, err)
 	}
@@ -116,7 +116,7 @@ func TestHcActionsAndLaunch(t *testing.T) {
 	}
 	run := lines[4]
 	for _, want := range []string{"run|--bg|", "--no-parent|", "--outlive-parent|", "--keep|", "--name|varro|", "--cwd|/w/acme|",
-		"--label|herdr.space=spcabc|", "--label|herdr.tab=tb", "--label|goagentic.agent=Varro|",
+		"--label|herdr.space=spcabc|", "--label|herdr.tab=tb", "--label|goagentic.agent=Varro|", "--label|goagentic.tab=Varro - Platform Lead|",
 		"--|/bin/bash|-lic|claude '/agents:start varro'; exec /bin/bash -l|"} {
 		if !strings.Contains(run, want) {
 			t.Errorf("run call lacks %q:\n%s", want, run)

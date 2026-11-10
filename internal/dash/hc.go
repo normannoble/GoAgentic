@@ -271,11 +271,19 @@ func hcStartArgs(ws *Workspace, a *Agent, space, name string) []string {
 	if name != "" {
 		args = append(args, "--name", name)
 	}
-	return append(args,
+	args = append(args,
 		"--cwd", ws.Root,
 		"--label", "herdr.space="+space,
 		"--label", "herdr.tab="+hcNewID("tb"),
-		"--label", "goagentic.agent="+a.Name,
+		"--label", "goagentic.agent="+a.Name)
+	// The app's goagentic-tabs mod names the new tab from this label
+	// (integrations/herdr-app); the agent's startup step sets it too.
+	tab := a.Name
+	if a.Title != "" {
+		tab += " - " + a.Title
+	}
+	args = append(args, "--label", "goagentic.tab="+tab)
+	return append(args,
 		"--", shell, "-lic", strings.Join(line, " ")+"; exec "+shell+" -l")
 }
 
