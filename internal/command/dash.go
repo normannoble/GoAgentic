@@ -164,6 +164,13 @@ func runFleet(cmd *cobra.Command, flags *dashFlags) error {
 	outFile, isFile := out.(*os.File)
 	tty := isFile && term.IsTerminal(int(outFile.Fd()))
 	noColor := flags.noColor || os.Getenv("NO_COLOR") != "" || !tty
+	if flags.jsonOutput {
+		f, err := scan(flags.all)
+		if err != nil {
+			return err
+		}
+		return dash.WriteFleetJSON(out, f)
+	}
 	if flags.once || !tty {
 		f, err := scan(flags.all)
 		if err != nil {

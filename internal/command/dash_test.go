@@ -3,6 +3,7 @@ package command
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,6 +56,27 @@ func TestDashSummaryAndJSON(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"name": "Sigrid"`) {
 		t.Errorf("json = %s", stdout.String())
+	}
+}
+
+func TestDashFleetJSON(t *testing.T) {
+	root := dashWorkspace(t)
+	var stdout, stderr bytes.Buffer
+	if code := Execute(context.Background(), []string{"dash", "--fleet", "--json", "--root", filepath.Dir(root)}, bytes.NewBuffer(nil), &stdout, &stderr); code != 0 {
+		t.Fatalf("fleet json exit = %d, stderr = %q", code, stderr.String())
+	}
+	var got struct {
+		Counts     struct{ Agents int }
+		Workspaces []struct {
+			Workspace string
+			Agents    []struct{ Name string }
+		}
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("fleet --json is not JSON: %v\n%s", err, stdout.String())
+	}
+	if len(got.Workspaces) != 1 || len(got.Workspaces[0].Agents) == 0 || got.Counts.Agents == 0 {
+		t.Errorf("fleet json = %s", stdout.String())
 	}
 }
 

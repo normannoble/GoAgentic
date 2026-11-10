@@ -63,7 +63,13 @@ func agentTone(ws *Workspace, a *Agent) tone {
 
 // Counts are the totals the count header shows.
 type Counts struct {
-	Agents, Live, ForYou, Overdue, Waiting, Blocked, Health int
+	Agents  int `json:"agents"`
+	Live    int `json:"live"`
+	ForYou  int `json:"for_you"`
+	Overdue int `json:"overdue"`
+	Waiting int `json:"waiting"`
+	Blocked int `json:"blocked"`
+	Health  int `json:"health"`
 }
 
 // Counts totals the workspace for the count header and the fleet view.

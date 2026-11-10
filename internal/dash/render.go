@@ -544,6 +544,32 @@ type JSONAgent struct {
 
 // WriteJSON prints the snapshot as JSON.
 func WriteJSON(w io.Writer, ws *Workspace) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(snapshotJSON(ws))
+}
+
+// FleetJSON is the machine-readable form of a fleet scan: every workspace
+// in the same shape `dash --json` prints for one.
+type FleetJSON struct {
+	Root       string    `json:"root"`
+	Scanned    time.Time `json:"scanned"`
+	Counts     Counts    `json:"counts"`
+	Workspaces []JSON    `json:"workspaces"`
+}
+
+// WriteFleetJSON prints the whole fleet as JSON.
+func WriteFleetJSON(w io.Writer, f *Fleet) error {
+	out := FleetJSON{Root: f.Root, Scanned: f.Scanned, Counts: f.Counts(), Workspaces: []JSON{}}
+	for _, ws := range f.Workspaces {
+		out.Workspaces = append(out.Workspaces, snapshotJSON(ws))
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(out)
+}
+
+func snapshotJSON(ws *Workspace) JSON {
 	out := JSON{Workspace: ws.Name, Root: ws.Root, Principal: ws.Principal, Summary: ws.Summary(), Scanned: ws.Scanned}
 	for _, a := range ws.Agents {
 		j := JSONAgent{
@@ -574,7 +600,5 @@ func WriteJSON(w io.Writer, ws *Workspace) error {
 		}
 		out.Agents = append(out.Agents, j)
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return out
 }
