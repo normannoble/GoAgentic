@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -24,6 +25,8 @@ type dashFlags struct {
 	printRoot  bool
 	view       string
 	fleet      bool
+	start      string
+	appSpace   string
 	noColor    bool
 	width      int
 	web        bool
@@ -62,6 +65,8 @@ agents/CONVENTIONS.md, or the one given with --root.`,
 	cmd.Flags().StringVar(&flags.view, "view", "table", "Ignored: the table is the only layout.")
 	_ = cmd.Flags().MarkDeprecated("view", "the table is the only layout")
 	cmd.Flags().BoolVar(&flags.fleet, "fleet", false, "Show every workspace under ~/agents (or --root) as one row each; enter opens one.")
+	cmd.Flags().StringVar(&flags.start, "start", "", "Open this agent in a new Herdr app tab (or say where it already runs), print the result as JSON and exit. For the app's mods.")
+	cmd.Flags().StringVar(&flags.appSpace, "app-space", "", "With --start, the Herdr app Space id to open the tab in (default: the workspace's Space, else a new one).")
 	cmd.Flags().BoolVar(&flags.printRoot, "print-root", false, "Print the workspace directory the dashboard would show and exit.")
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "Disable color.")
 	cmd.Flags().IntVar(&flags.width, "width", 0, "Output width for --once (default: terminal width, else 120).")
@@ -109,6 +114,24 @@ func runDash(cmd *cobra.Command, flags *dashFlags) error {
 	outFile, isFile := out.(*os.File)
 	tty := isFile && term.IsTerminal(int(outFile.Fd()))
 	noColor := flags.noColor || os.Getenv("NO_COLOR") != "" || !tty
+
+	if flags.start != "" {
+		ws, err := scan(false)
+		if err != nil {
+			return err
+		}
+		for _, a := range ws.Agents {
+			if !strings.EqualFold(a.Name, flags.start) {
+				continue
+			}
+			msg, terminal, err := dash.StartInApp(ws, a, flags.appSpace)
+			if err != nil {
+				return err
+			}
+			return json.NewEncoder(out).Encode(map[string]string{"agent": a.Name, "message": msg, "terminal": terminal})
+		}
+		return fmt.Errorf("no agent %q in %s", flags.start, root)
+	}
 
 	switch {
 	case flags.jsonOutput:

@@ -291,38 +291,52 @@ func hcStartArgs(ws *Workspace, a *Agent, space, name string) []string {
 // running there (the app cannot be switched from here), its start command
 // typed into its terminal when only the shell is left, else a new tab.
 func hcLaunch(ws *Workspace, a *Agent) (string, error) {
+	msg, _, err := StartInApp(ws, a, "")
+	return msg, err
+}
+
+// StartInApp is hcLaunch for a caller that knows the app Space to open the
+// tab in (the app's own mods, through `dash --start`); space "" picks one as
+// the dashboard does. It also returns the agent's terminal address when it
+// has one, so the caller can show it.
+func StartInApp(ws *Workspace, a *Agent, space string) (msg, terminal string, err error) {
 	harness := harnessOf(ws, a)
 	if a.Live != nil && IsHcPane(a.Live.PaneID) {
+		terminal = hcAddress(a.Live.PaneID)
 		if a.Live.Running {
 			where := "its tab"
 			if a.Live.Label != "" {
 				where = "tab " + a.Live.Label
 			}
-			return a.Name + " is already running in the Herdr app (" + where + ")", nil
+			return a.Name + " is already running in the Herdr app (" + where + ")", terminal, nil
 		}
 		line := executable(harness) + " " + shellQuote(startCommand(harness, strings.ToLower(a.Name)))
 		if err := hcPrompt(a.Live.PaneID, line); err != nil {
-			return "", err
+			return "", "", err
 		}
-		return "started " + a.Name + " (" + harness + ") in its tab", nil
+		return "started " + a.Name + " (" + harness + ") in its tab", terminal, nil
 	}
 	if a.Live != nil && a.Live.Running {
 		// Running in the terminal Herdr (or T3): a second session would
 		// fight the first over its tracker.
-		return a.Name + " is already running in the terminal Herdr; wrap it there before starting it here", nil
+		return a.Name + " is already running in the terminal Herdr; wrap it there before starting it here", "", nil
 	}
-	space := hcSpace(ws)
+	if space == "" {
+		space = hcSpace(ws)
+	}
 	name := strings.ToLower(a.Name)
-	_, err := hcRun(30*time.Second, hcStartArgs(ws, a, space, name)...)
+	out, err := hcRun(30*time.Second, hcStartArgs(ws, a, space, name)...)
 	if err != nil && strings.Contains(err.Error(), "name") {
 		// Its name is taken by a live terminal: start it unnamed; the
 		// goagentic.agent label still ties it to the agent.
-		_, err = hcRun(30*time.Second, hcStartArgs(ws, a, space, "")...)
+		out, err = hcRun(30*time.Second, hcStartArgs(ws, a, space, "")...)
 	}
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return "started " + a.Name + " (" + harness + ") in a new Herdr app tab", nil
+	var started hcListed
+	_ = json.Unmarshal(out, &started)
+	return "started " + a.Name + " (" + harness + ") in a new Herdr app tab", started.Address, nil
 }
 
 // useHc picks the Herdr app for a Start: hc is installed and its server

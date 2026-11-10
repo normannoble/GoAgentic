@@ -538,8 +538,15 @@ type JSONAgent struct {
 	NextUp       *Item          `json:"next_up,omitempty"`
 	ForPrincipal []Item         `json:"for_principal,omitempty"`
 	OpenCounts   map[string]int `json:"open_counts"`
-	Health       string         `json:"health"`
-	Findings     []string       `json:"findings,omitempty"`
+	// ForYou, Waiting and Blocked are the counts the dashboard pills show:
+	// items waiting on the principal (plus unprocessed inbox entries), P1
+	// items waiting on others, and Blocked items.
+	ForYou    int      `json:"for_you"`
+	Waiting   int      `json:"waiting"`
+	Blocked   int      `json:"blocked"`
+	Unwrapped bool     `json:"unwrapped,omitempty"`
+	Health    string   `json:"health"`
+	Findings  []string `json:"findings,omitempty"`
 }
 
 // WriteJSON prints the snapshot as JSON.
@@ -578,6 +585,10 @@ func snapshotJSON(ws *Workspace) JSON {
 			NextSession:  a.NextSession,
 			ForPrincipal: a.ForPrincipal(ws.Principal),
 			OpenCounts:   a.Counts(),
+			ForYou:       len(a.ForPrincipal(ws.Principal)) + a.InboxUnprocessed,
+			Waiting:      a.WaitingCount(ws.Principal),
+			Blocked:      a.BlockedCount(),
+			Unwrapped:    a.Unwrapped,
 			Health:       [...]string{"ok", "warn", "fail"}[a.Health.Level],
 			Findings:     a.Health.Findings,
 		}

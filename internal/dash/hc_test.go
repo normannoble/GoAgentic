@@ -170,3 +170,22 @@ func TestUseHc(t *testing.T) {
 }
 
 func jsonUnmarshal(s string, v any) error { return json.Unmarshal([]byte(s), v) }
+
+func TestStartInAppSpace(t *testing.T) {
+	log := fakeHc(t, "")
+	t.Setenv("SHELL", "/bin/bash")
+	ws := &Workspace{Root: "/w/acme"}
+	msg, _, err := StartInApp(ws, &Agent{Name: "Varro"}, "spcgiven")
+	if err != nil || !strings.Contains(msg, "started Varro") {
+		t.Fatalf("start: %q, %v", msg, err)
+	}
+	b, _ := os.ReadFile(log)
+	if !strings.Contains(string(b), "--label|herdr.space=spcgiven|") || strings.Contains(string(b), "get|") {
+		t.Errorf("want one run in the given space, got:\n%s", b)
+	}
+	live := &Agent{Name: "Varro", Live: &LivePane{PaneID: "hc:t7", Running: true}}
+	msg, terminal, err := StartInApp(ws, live, "spcgiven")
+	if err != nil || terminal != "t7" || !strings.Contains(msg, "already running") {
+		t.Errorf("live: %q, %q, %v", msg, terminal, err)
+	}
+}

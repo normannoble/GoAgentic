@@ -48,3 +48,40 @@ herdr-app do mod.open '{"name":"goagentic-tabs"}'
 ```
 
 or bind `mod.open {"name":"goagentic-tabs"}` to a key in `keys.json`.
+
+---
+
+# goagentic-home — Herdr app mod
+
+Every workspace and agent in one view, opened on a key. Each agent is a card:
+whether it is running, what it wants to do next, how many items wait on you
+(amber), how many P1 items wait on someone else (orange), and anything blocked
+(red). Click a running agent to go to its tab. **Start** opens an agent in a new
+tab of its workspace's Space, named after it. Type to filter; arrows and Enter
+act on the selected card; Esc closes.
+
+It reads `goagentic dash --fleet --json` (CLI v0.3.13 or later) every 20
+seconds while open, and starts agents with `goagentic dash --start`.
+
+## Install
+
+```bash
+cp -R integrations/herdr-app/goagentic-home ~/.config/herdr-app/mods/
+herdr-app check ~/.config/herdr-app/mods/goagentic-home
+```
+
+Bind a key in `~/.config/herdr-app/keys.json`, under `global`:
+
+```json
+"cmd-alt-g": "mod.open:goagentic-home"
+```
+
+If the workspaces live on another machine the app is connected to, say where in
+`~/.config/herdr-app/goagentic.json` (every field is optional):
+
+```json
+{ "machine": "buildbox", "bin": "/home/you/.local/bin/goagentic", "root": "/home/you/agents" }
+```
+
+`machine` is the name `hc machine ls` shows. Give `bin` as a full path there:
+commands the app runs on another machine do not get your login shell's PATH.
