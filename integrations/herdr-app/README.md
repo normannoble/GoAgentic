@@ -73,7 +73,7 @@ herdr-app check ~/.config/herdr-app/mods/goagentic-home
 Bind a key in `~/.config/herdr-app/keys.json`, under `global`:
 
 ```json
-"cmd-alt-g": "mod.open:goagentic-home"
+"cmd-alt-j": "mod.open:goagentic-home"
 ```
 
 If the workspaces live on another machine the app is connected to, say where in
