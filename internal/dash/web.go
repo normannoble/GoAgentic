@@ -22,9 +22,11 @@ import (
 
 // The web dashboard: the same picture as the TUI, served as HTML. It reads
 // through the same scan and the same section logic, so the two agree. It
-// writes two things, never a tracker: an answer to an item that waits on the
-// principal, appended to the agent's inbox (answers.go), and a message typed
-// into an agent's live session pane through Herdr (send). It can also start
+// writes an answer to an item that waits on the principal, appended to the
+// agent's inbox (answers.go), and a message typed into an agent's live
+// session pane through Herdr (send). The one tracker write is the Tasks
+// view's edit of a single row's status, priority, due date or owner
+// (tasks_edit.go). It can also start
 // a stopped agent in Herdr (start), as the TUI's enter does.
 
 //go:embed web/page.tmpl web/style.css
@@ -80,6 +82,10 @@ type WebSource struct {
 	// OrderFile keeps the sidebar's order; "" means dash-order.json in the
 	// user's config folder (web_order.go).
 	OrderFile string
+	// ImageRoots are the folders the chat's images may be served from; nil
+	// means the uploads, T3's attachments and the session scratch folder
+	// (web_chatimg.go).
+	ImageRoots []string
 	// UploadDir keeps images sent with a message; "" means
 	// goagentic/uploads in the user's cache folder (web_images.go).
 	UploadDir string
@@ -142,6 +148,8 @@ type webServer struct {
 	// does not open a second session.
 	startMu  sync.Mutex
 	launches map[string]*launchState
+	// tasksView is the Tasks view's state (tasks.go).
+	tasksView tasksState
 	// closes holds the agents a Wrap & close is ending (under startMu).
 	closes map[string]*closeState
 }
@@ -187,6 +195,7 @@ func NewWebHandler(src WebSource) http.Handler {
 		data, _ := webFiles.ReadFile("web/style.css")
 		_, _ = w.Write(data)
 	})
+	s.tasksRoutes(mux)
 	return s.guard(mux)
 }
 
@@ -297,8 +306,10 @@ type webAgent struct {
 	Focus *sessionFocus
 	// Usage is the running session's model and context use.
 	Usage *sessionUsage
-	// Initial and Hue make the header's tile.
+	// Initial and Hue make the header's tile; Avatar, when the agent has
+	// an image, replaces it (web_avatar.go).
 	Initial string
+	Avatar  string
 	Hue     int
 	// Active: a session is running or starting, so the page leads with the
 	// chat; otherwise with the tracker. State says what the session does.
