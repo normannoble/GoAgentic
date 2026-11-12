@@ -158,7 +158,17 @@ func Scan(root string, opts Options) (*Workspace, error) {
 		if cache == nil {
 			cache = NewTranscriptCache()
 		}
-		starts := cache.Starts(filepath.Join(opts.Transcripts, projectDirName(root)))
+		// The root's own sessions, plus those T3 ran in a worktree of it
+		// (~/.t3/worktrees/<root's name>/t3-…): a scheduled T3 thread works
+		// there, so its start is newer than any in the root.
+		starts := map[string]Start{}
+		for _, dir := range transcriptDirs(opts.Transcripts, root) {
+			for name, st := range cache.Starts(dir) {
+				if cur, ok := starts[name]; !ok || st.Started.After(cur.Started) {
+					starts[name] = st
+				}
+			}
+		}
 		for _, a := range ws.Agents {
 			if s, ok := starts[strings.ToLower(a.Name)]; ok {
 				a.LastStarted = s.Started
@@ -212,4 +222,22 @@ func fileExists(path string) bool {
 func dirExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
+}
+
+// transcriptDirs are the Claude Code project directories that hold the
+// workspace's sessions: the root's, and one per T3 worktree of it.
+func transcriptDirs(transcripts, root string) []string {
+	dirs := []string{filepath.Join(transcripts, projectDirName(root))}
+	home := os.Getenv("T3CODE_HOME")
+	if home == "" {
+		if h, err := os.UserHomeDir(); err == nil {
+			home = filepath.Join(h, ".t3")
+		}
+	}
+	if home == "" {
+		return dirs
+	}
+	prefix := projectDirName(filepath.Join(home, "worktrees", filepath.Base(root))) + "-"
+	more, _ := filepath.Glob(filepath.Join(transcripts, prefix+"t3-*"))
+	return append(dirs, more...)
 }

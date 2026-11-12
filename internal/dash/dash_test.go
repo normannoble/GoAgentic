@@ -1203,3 +1203,35 @@ func TestAgentNavLinkSplitsBadge(t *testing.T) {
 		}
 	}
 }
+
+// A scheduled T3 thread runs in a worktree under ~/.t3/worktrees/<root's
+// name>/, so its transcript sits in that worktree's project directory; it
+// is the agent's session, not an older one left in the root's.
+func TestTranscriptDirsT3Worktrees(t *testing.T) {
+	tr, t3home := t.TempDir(), t.TempDir()
+	t.Setenv("T3CODE_HOME", t3home)
+	root := "/home/someone/mindvalley"
+	line := func(args, ts string) string {
+		return `{"type":"user","message":{"content":"<command-name>/agents:start</command-name>\n<command-args>` + args + `</command-args>"},"timestamp":"` + ts + `"}` + "\n"
+	}
+	write(t, filepath.Join(tr, projectDirName(root), "old.jsonl"), line("Jeeves", "2026-11-09T12:40:00Z"))
+	wt := projectDirName(filepath.Join(t3home, "worktrees", "mindvalley", "t3-721a37df"))
+	write(t, filepath.Join(tr, wt, "new.jsonl"), line("Jeeves Scheduled morning run", "2026-11-10T01:15:00Z"))
+	// Another project whose name starts the same is not this workspace's.
+	write(t, filepath.Join(tr, projectDirName(filepath.Join(t3home, "worktrees", "mindvalley2", "t3-1")), "x.jsonl"), line("Jeeves", "2026-11-11T01:00:00Z"))
+
+	dirs := transcriptDirs(tr, root)
+	if len(dirs) != 2 {
+		t.Fatalf("dirs = %v", dirs)
+	}
+	c := NewTranscriptCache()
+	var best Start
+	for _, d := range dirs {
+		if s, ok := c.Starts(d)["jeeves"]; ok && s.Started.After(best.Started) {
+			best = s
+		}
+	}
+	if filepath.Base(best.Path) != "new.jsonl" {
+		t.Errorf("Jeeves's session = %s, want the worktree's", best.Path)
+	}
+}
