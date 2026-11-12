@@ -98,7 +98,10 @@ func attachLive(ws *Workspace, panes []LivePane) {
 			if !paneIsAgent(p, name) {
 				continue
 			}
-			if a.Live == nil || (p.Running && !a.Live.Running) {
+			// A running pane beats a stopped one, and a T3 thread at work
+			// beats an idle one.
+			if a.Live == nil || (p.Running && !a.Live.Running) ||
+				(p.Running && a.Live.Running && p.Status == "working" && a.Live.Status != "working") {
 				a.Live = p
 			}
 		}
