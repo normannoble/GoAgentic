@@ -1,0 +1,768 @@
+{{define "tasks"}}<!doctype html>
+<html lang="en" data-theme="{{.Theme}}"{{with .Agent}} data-agent="{{.WS}}/{{.Name}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="{{if eq .Theme "light"}}light{{else if eq .Theme "dark"}}dark{{else}}light dark{{end}}">
+<meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
+<title>{{.Title}} · Tasks</title>
+<link rel="stylesheet" href="/tasks.css?v={{tasksVersion}}">
+<script>
+// The pane's widths, per mode, before first paint so nothing jumps.
+try {
+  const root = document.documentElement;
+  for (const m of ["task", "chat", "both"]) { const w = parseInt(localStorage.getItem("tasks-pane-" + m), 10); if (w >= 320) root.style.setProperty("--pane-w-" + m, w + "px"); }
+  for (const k of ["h", "v"]) { const f = parseFloat(localStorage.getItem("tasks-split-" + k)); if (f > 0.15 && f < 0.85) root.style.setProperty("--split-" + k, (f * 100) + "%"); }
+  // An agent page opens in the view last used for that agent, unless the
+  // address names one.
+  const agent = root.dataset.agent, u = new URL(location.href);
+  if (agent && !u.searchParams.has("view")) {
+    const v = localStorage.getItem("tasks-view:" + agent);
+    if (v === "chat" || v === "both") { u.searchParams.set("view", v); location.replace(u); }
+  }
+  const sb = parseFloat(localStorage.getItem("tasks-split-both"));
+  if (sb > 0.2 && sb < 0.8) root.style.setProperty("--split-both", (sb * 100) + "%");
+} catch {}
+</script>
+</head>
+<body class="tasks{{if .Sweep}} has-dock{{end}}{{if .Pane}} has-pane{{end}}{{with .Detail}}{{if .Row}} pane-open{{end}}{{end}}{{with .View}} view-{{.}}{{end}}">
+{{template "tasks-top" .}}
+<div class="tk-app">
+<nav class="tk-side" aria-label="Tasks">
+  <ul>{{range .Nav.Views}}<li><a href="{{.Href}}"{{if .Current}} class="current" aria-current="page"{{end}}><span>{{.Label}}</span>{{if .Count}}<span class="tk-n">{{.Count}}</span>{{end}}</a></li>{{end}}</ul>
+  <div class="tk-side-agents">{{range .Nav.Workspaces}}<h3>{{.Label}}</h3>
+  <ul>{{range .Agents}}<li><a href="{{.Href}}"{{if .Current}} class="current" aria-current="page"{{end}}>{{template "tasks-tile" (tile .Label .Avatar "xs" .Live)}}<span>{{.Label}}</span>{{if .Count}}<span class="tk-n you">{{.Count}}</span>{{end}}</a></li>{{end}}</ul>{{end}}</div>
+</nav>
+<div class="tk-col">
+
+<main class="tk-main">
+<header class="tk-head">
+  {{with .Crumbs}}<nav class="tk-crumbs" aria-label="Breadcrumb">{{range $i, $c := .}}{{if $i}}<span aria-hidden="true">/</span>{{end}}{{if $c.Href}}<a href="{{$c.Href}}">{{$c.Label}}</a>{{else}}<span aria-current="page">{{$c.Label}}</span>{{end}}{{end}}</nav>{{end}}
+  {{if .Tile}}<div class="tk-headrow">{{template "tasks-tile" .Tile}}<div class="tk-headtext"><h1>{{.Heading}}<span id="tk-livepill" data-poll>{{with .Live}} <span class="tk-livepill {{.}}">Live · {{if eq . "prompt"}}at a prompt{{else}}{{.}}{{end}}</span>{{end}}</span></h1>{{with .Sub}}<p>{{.}}</p>{{end}}</div>
+    <div class="tk-headbtns">{{if .Views}}<nav class="tk-viewswitch" aria-label="View">{{range .Views}}<a href="{{.Href}}" data-view="{{.Live}}" class="vs-{{.Live}}{{if .Current}} on{{end}}"{{if .Current}} aria-current="page"{{end}}>{{if eq .Live "chat"}}<span id="tk-chatdot" data-poll>{{with $.Live}}<i class="tk-presence {{.}}" title="Live · {{.}}"></i>{{end}}</span>{{end}}{{.Label}}</a>{{end}}</nav>{{end}}{{if .SweepTotal}}<a class="tk-btn primary" href="{{.SweepHref}}">One by one<span class="tk-badge">{{.SweepTotal}}</span></a>{{end}}</div></div>
+  {{else}}<h1>{{.Heading}}</h1>{{with .Sub}}<p>{{.}}</p>{{end}}{{end}}
+</header>
+{{with .Overview}}{{template "tasks-overview" .}}{{end}}
+{{with .List}}{{template "tasks-list" .}}{{end}}
+{{with .Agent}}{{if eq $.View "chat"}}<section class="tk-chatmain">{{template "tasks-chat" $.Chat}}</section>
+{{else if eq $.View "both"}}<div class="tk-bothmain"><div class="tk-listcol">{{template "tasks-agent" .}}{{if $.Pane}}{{template "tasks-pane" $}}{{end}}</div><div class="tk-split" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the task list and the chat" title="Drag to resize; double-click to reset"></div><section class="tk-chatcol">{{template "tasks-chat" $.Chat}}</section></div>
+{{else}}{{template "tasks-agent" .}}{{end}}{{end}}
+{{with .Sweep}}{{template "tasks-sweep" .}}{{end}}
+{{with .Search}}{{template "tasks-search" .}}{{end}}
+</main>
+</div>
+{{if and .Pane (ne .View "both")}}{{template "tasks-pane" .}}{{end}}
+</div>
+<div class="tk-toast" id="tk-toast" role="status" aria-live="polite"></div>
+<script>
+// Writes carry the X-GoAgentic header the server asks of every POST, so
+// forms post with fetch; on success the page goes to the form's next page.
+const toast = (text, error) => {
+  const t = document.getElementById("tk-toast");
+  t.textContent = text; t.classList.toggle("error", !!error); t.classList.toggle("show", !!text);
+};
+document.addEventListener("submit", async e => {
+  const form = e.target.closest("form.tk-post");
+  if (!form) return;
+  e.preventDefault();
+  const data = form.hasAttribute("data-images") ? new FormData(form) : new URLSearchParams(new FormData(form));
+  if (e.submitter?.name) data.set(e.submitter.name, e.submitter.value);
+  if (form.hasAttribute("data-images")) { data.delete("image"); for (const f of replyShots.get(form) || []) data.append("image", f, f.name || "image.png"); }
+  const buttons = [...document.querySelectorAll("button")].filter(b => b.form === form);
+  buttons.forEach(b => b.disabled = true);
+  toast(form.dataset.busy || "Saving…");
+  try {
+    const res = await fetch(form.action, {method: "POST", headers: {"X-GoAgentic": "1", "X-Tasks-Fetch": "1"}, body: data});
+    if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
+    let next = form.dataset.next || res.url;
+    const undo = res.headers.get("X-Tasks-Undo");
+    if (undo && form.hasAttribute("data-undo")) { const u = new URL(next, location.href); u.searchParams.set("undo", undo); next = u.pathname + u.search; }
+    location.href = next;
+  } catch (err) {
+    toast(err.message, true);
+    buttons.forEach(b => b.disabled = false);
+  }
+});
+// Search: ⌘K, Ctrl+K or / focuses the box; results drop down as you type
+// (the same search as /tasks/search); Enter opens the first or chosen one.
+const searchForm = document.querySelector(".tk-search"), searchBox = searchForm?.querySelector("input[name=q]"), results = searchForm?.querySelector(".tk-results");
+let searchTimer = 0, searchSel = -1, searchSeq = 0;
+function drawHits(hits) {
+  if (!results) return;
+  searchSel = hits.length ? 0 : -1;
+  results.replaceChildren(...hits.map((h, i) => {
+    const a = document.createElement("a"); a.href = h.href; a.setAttribute("role", "option"); a.className = i === 0 ? "sel" : "";
+    const dot = document.createElement("span"); dot.className = h.kind === "agent" ? "tk-hitkind" : "tk-dot " + (h.dot || ""); if (h.kind === "agent") dot.textContent = "Agent";
+    const t = document.createElement("span"); t.className = "tk-hittext";
+    const b = document.createElement("b"); b.textContent = h.title;
+    const sm = document.createElement("small"); sm.textContent = (h.kind === "item" ? h.agent + " · " : "") + (h.sub || "");
+    t.append(b, sm); a.append(dot, t); return a;
+  }));
+  if (!hits.length && searchBox.value.trim()) { const p = document.createElement("p"); p.className = "tk-muted"; p.textContent = "Nothing found."; results.append(p); }
+  results.hidden = !searchBox.value.trim();
+}
+searchBox?.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  const q = searchBox.value.trim();
+  if (!q) { results.hidden = true; return; }
+  searchTimer = setTimeout(async () => {
+    const seq = ++searchSeq, params = new URLSearchParams(new FormData(searchForm)); params.set("format", "json");
+    try { const hits = await (await fetch("/tasks/search?" + params)).json(); if (seq === searchSeq) drawHits(hits); } catch {}
+  }, 150);
+});
+searchBox?.addEventListener("keydown", e => {
+  const items = [...results.querySelectorAll("a")];
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (!items.length) return;
+    e.preventDefault();
+    searchSel = (searchSel + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+    items.forEach((a, i) => a.classList.toggle("sel", i === searchSel));
+  } else if (e.key === "Enter" && !results.hidden && items[searchSel]) {
+    e.preventDefault(); location.href = items[searchSel].href;
+  } else if (e.key === "Escape") {
+    e.stopImmediatePropagation(); results.hidden = true; searchBox.blur();
+  }
+}, true);
+searchBox?.addEventListener("blur", () => setTimeout(() => { if (results) results.hidden = true; }, 150));
+document.addEventListener("keydown", e => {
+  const typing = e.target.closest?.("input, textarea, select, [contenteditable]");
+  if (((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
+    if (!searchBox || getComputedStyle(searchForm).display === "none") { if (e.key !== "/") location.href = document.querySelector(".tk-searchicon")?.href || "/tasks/search"; return; }
+    e.preventDefault(); searchBox.focus(); searchBox.select();
+  }
+});
+if (/Mac|iPhone|iPad/.test(navigator.platform)) {} else { const k = document.querySelector(".tk-kbd"); if (k) k.textContent = "Ctrl K"; }
+// Popovers close when another opens or on a click elsewhere.
+document.addEventListener("toggle", e => {
+  if (!e.target.matches?.("details.tk-pop") || !e.target.open) return;
+  for (const d of document.querySelectorAll("details.tk-pop[open]")) if (d !== e.target) d.open = false;
+}, true);
+document.addEventListener("click", e => { if (!e.target.closest("details.tk-pop")) for (const d of document.querySelectorAll("details.tk-pop[open]")) d.open = false; });
+// The theme switch applies at once and is kept in the cookie the server
+// reads, so the next page loads in it with no flash.
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-theme-pick]");
+  if (!a) return;
+  e.preventDefault();
+  const t = a.dataset.themePick;
+  document.documentElement.dataset.theme = t;
+  document.cookie = `tasks_theme=${t}; path=/tasks; max-age=31536000; samesite=lax`;
+  for (const b of document.querySelectorAll("[data-theme-pick]")) b.setAttribute("aria-pressed", String(b.dataset.themePick === t));
+});
+// The detail pane: on a tablet or desktop a row opens beside the list
+// (the server renders ?item=, so links work without script); here the pane
+// is swapped in place and the address follows.
+const wide = () => matchMedia("(min-width: 700px)").matches;
+async function paneGo(href, push = true) {
+  const res = await fetch(href);
+  if (!res.ok) { location.href = href; return; }
+  const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+  const pane = doc.getElementById("tk-pane"), cur = document.getElementById("tk-pane");
+  if (!pane || !cur) { location.href = href; return; }
+  cur.replaceWith(pane);
+  document.body.className = doc.body.className;
+  // The rows follow the new page: which one is selected, and where each
+  // opens (it keeps the pane's mode).
+  const fresh = new Map([...doc.querySelectorAll("details.tk-row")].map(d => [d.dataset.key, d]));
+  for (const d of document.querySelectorAll("details.tk-row")) {
+    const f = fresh.get(d.dataset.key);
+    d.classList.toggle("selected", !!f?.classList.contains("selected"));
+    const href = f?.querySelector(":scope > summary")?.dataset.href;
+    if (href) d.querySelector(":scope > summary").dataset.href = href;
+  }
+  for (const el of doc.querySelectorAll("[data-poll][id]")) document.getElementById(el.id)?.replaceWith(el);
+  if (push) history.pushState(null, "", href);
+  scrollChat();
+  return pane;
+}
+addEventListener("popstate", () => location.reload());
+document.addEventListener("click", e => {
+  const sum = e.target.closest("details.tk-row > summary[data-href]");
+  if (sum && wide() && !e.target.closest("a")) {
+    e.preventDefault();
+    paneGo(sum.dataset.href).then(p => p?.querySelector(".tk-ptitle")?.setAttribute("tabindex", "-1"));
+    return;
+  }
+  const a = e.target.closest("[data-pane-close]");
+  if (a && !e.metaKey && !e.ctrlKey) {
+    e.preventDefault();
+    const key = a.matches("[data-pane-close]") && document.querySelector("details.tk-row.selected")?.dataset.key;
+    paneGo(a.getAttribute("href")).then(() => {
+      const row = key && [...document.querySelectorAll("details.tk-row")].find(r => r.dataset.key === key);
+      row?.querySelector(":scope > summary")?.focus({preventScroll: true});
+    });
+    return;
+  }
+  if (e.target.closest("[data-cancel-pane]")) { document.getElementById("pedit")?.reset(); }
+});
+// The composer: grows with its text (to about 8 lines), Enter sends and
+// Shift+Enter breaks the line, images come by the clip, paste or drop and
+// go with the message through the send route's own upload.
+let shots = [];
+const composer = () => document.querySelector("form[data-compose]");
+function growBox(ta) { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 8 * 22 + 20) + "px"; }
+function syncSend() {
+  const f = composer(); if (!f) return;
+  f.querySelector(".tk-sendbtn").disabled = !f.querySelector("textarea").value.trim() && !shots.length;
+}
+function drawShots() {
+  const box = composer()?.querySelector(".tk-thumbs"); if (!box) return;
+  for (const img of box.querySelectorAll("img")) URL.revokeObjectURL(img.src);
+  box.replaceChildren(...shots.map((f, i) => {
+    const t = document.createElement("span"); t.className = "tk-thumb";
+    const img = document.createElement("img"); img.src = URL.createObjectURL(f); img.alt = f.name || "image";
+    const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", "Remove image");
+    x.onclick = () => { shots.splice(i, 1); drawShots(); };
+    t.append(img, x); return t;
+  }));
+  syncSend();
+}
+const takeImages = files => {
+  const add = [...files].filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.type));
+  if (!add.length || !composer()) return false;
+  shots = shots.concat(add).slice(0, 6); drawShots(); return true;
+};
+async function sendComposer(f) {
+  const ta = f.querySelector("textarea"), btn = f.querySelector(".tk-sendbtn"), st = f.querySelector(".tk-cstatus");
+  if (btn.disabled) return;
+  const data = new FormData(); data.set("text", ta.value);
+  for (const s of shots) data.append("image", s, s.name || "image.png");
+  btn.disabled = true; st.textContent = "Sending…"; st.classList.remove("error");
+  try {
+    const res = await fetch(f.action, {method: "POST", headers: {"X-GoAgentic": "1"}, body: data});
+    if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
+    ta.value = ""; growBox(ta); shots = []; drawShots(); st.textContent = "";
+    await refreshChat(true);
+  } catch (err) { st.textContent = err.message; st.classList.add("error"); syncSend(); }
+}
+document.addEventListener("submit", e => {
+  const f = e.target.closest("form[data-compose]");
+  if (!f) return;
+  e.preventDefault(); e.stopImmediatePropagation(); sendComposer(f);
+}, true);
+document.addEventListener("input", e => { if (e.target.matches("form[data-compose] textarea")) { growBox(e.target); syncSend(); } });
+document.addEventListener("keydown", e => {
+  if (!e.target.matches?.("form[data-compose] textarea") || e.key !== "Enter" || e.isComposing) return;
+  if (e.shiftKey && !(e.metaKey || e.ctrlKey)) return;
+  e.preventDefault(); e.stopImmediatePropagation(); sendComposer(e.target.form);
+}, true);
+document.addEventListener("change", e => { if (e.target.matches("form[data-compose] input[type=file]")) { takeImages(e.target.files); e.target.value = ""; } });
+document.addEventListener("paste", e => { if (e.target.matches?.("form[data-compose] textarea") && takeImages(e.clipboardData?.files || [])) e.preventDefault(); });
+// A reply box takes images too, by the clip or a paste; they go with the
+// answer (to the live chat, or saved beside the inbox entry).
+const replyShots = new WeakMap();
+function drawReplyShots(form) {
+  const box = form.querySelector(".tk-thumbs"), list = replyShots.get(form) || []; if (!box) return;
+  for (const img of box.querySelectorAll("img")) URL.revokeObjectURL(img.src);
+  box.replaceChildren(...list.map((f, i) => {
+    const t = document.createElement("span"); t.className = "tk-thumb";
+    const img = document.createElement("img"); img.src = URL.createObjectURL(f); img.alt = f.name || "image";
+    const x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.setAttribute("aria-label", "Remove image");
+    x.onclick = () => { list.splice(i, 1); drawReplyShots(form); };
+    t.append(img, x); return t;
+  }));
+}
+function takeReplyImages(form, files) {
+  const add = [...files].filter(f => /^image\/(png|jpeg|gif|webp)$/.test(f.type));
+  if (!add.length) return false;
+  replyShots.set(form, (replyShots.get(form) || []).concat(add).slice(0, 6)); drawReplyShots(form); return true;
+}
+document.addEventListener("change", e => { const f = e.target.closest?.("form[data-images]"); if (f && e.target.matches("input[type=file]")) { takeReplyImages(f, e.target.files); e.target.value = ""; } });
+document.addEventListener("paste", e => { const f = e.target.closest?.("form[data-images]"); if (f && e.target.matches("textarea") && takeReplyImages(f, e.clipboardData?.files || [])) e.preventDefault(); });
+document.addEventListener("dragover", e => { if (composer() && e.target.closest?.("#tk-pane") && [...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); composer().classList.add("drop"); } });
+document.addEventListener("dragleave", e => { if (!e.relatedTarget) composer()?.classList.remove("drop"); });
+document.addEventListener("drop", e => { composer()?.classList.remove("drop"); if (e.target.closest?.("#tk-pane") && takeImages(e.dataTransfer?.files || [])) e.preventDefault(); });
+// Images open full size; Esc or a click closes them.
+document.addEventListener("click", e => {
+  const a = e.target.closest("a.tk-img");
+  if (!a) return;
+  e.preventDefault();
+  const box = document.createElement("div"); box.className = "tk-lightbox"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "Image");
+  const img = document.createElement("img"); img.src = a.getAttribute("href"); img.alt = a.querySelector("img")?.alt || "";
+  box.append(img); box.tabIndex = -1;
+  box.onclick = () => box.remove();
+  document.body.append(box); box.focus();
+});
+document.addEventListener("keydown", e => {
+  const box = document.querySelector(".tk-lightbox");
+  if (box && e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); box.remove(); }
+}, true);
+// The chat follows the session: re-read every 5 s while nothing is typed.
+function scrollChat() { const l = document.getElementById("tk-chatlog"); if (l) l.scrollTop = l.scrollHeight; }
+scrollChat();
+async function refreshChat(force) {
+  const log = document.getElementById("tk-chatlog");
+  if (!log || (!force && (document.hidden || document.querySelector(".tk-lightbox")))) return;
+  const atBottom = force || log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  if (!force && document.querySelector("form[data-compose] textarea")?.value.trim()) return;
+  const open = new Set([...log.querySelectorAll("details.tk-steps[open]")].map(d => [...log.querySelectorAll("details.tk-steps")].indexOf(d)));
+  try {
+    const doc = new DOMParser().parseFromString(await (await fetch(location.href)).text(), "text/html");
+    const fresh = doc.getElementById("tk-chatlog");
+    if (!fresh) return;
+    log.innerHTML = fresh.innerHTML;
+    for (const el of doc.querySelectorAll("[data-poll][id]")) document.getElementById(el.id)?.replaceWith(el);
+    [...log.querySelectorAll("details.tk-steps")].forEach((d, i) => { if (open.has(i)) d.open = true; });
+    if (atBottom) scrollChat();
+  } catch {}
+}
+// Without the chat, the live marks (header pill, Chat tab dot) still follow.
+async function refreshLive() {
+  if (document.hidden || !document.querySelector("#tk-livepill, .tk-prep.on")) return;
+  try {
+    const doc = new DOMParser().parseFromString(await (await fetch(location.href)).text(), "text/html");
+    for (const el of doc.querySelectorAll("[data-poll][id]")) document.getElementById(el.id)?.replaceWith(el);
+  } catch {}
+}
+setInterval(() => document.getElementById("tk-chatlog") ? refreshChat(false) : refreshLive(), 5000);
+// Chat and Both fill the window below the header.
+function fitViews() {
+  const el = document.querySelector(".tk-chatmain, .tk-bothmain");
+  if (el) document.documentElement.style.setProperty("--chat-top", Math.round(el.getBoundingClientRect().top + scrollY) + "px");
+}
+fitViews(); addEventListener("resize", fitViews);
+// The agent page's view is kept per agent.
+document.addEventListener("click", e => {
+  const v = e.target.closest("[data-view]")?.dataset.view, agent = document.documentElement.dataset.agent;
+  if (v && agent) try { localStorage.setItem("tasks-view:" + agent, v); } catch {}
+}, true);
+// Both: the divider between the task list and the chat.
+function setSplit(f, save) {
+  f = Math.max(0.25, Math.min(0.75, f));
+  document.documentElement.style.setProperty("--split-both", (f * 100) + "%");
+  if (save) try { localStorage.setItem("tasks-split-both", String(f)); } catch {}
+}
+const splitFrac = ev => { const r = document.querySelector(".tk-bothmain").getBoundingClientRect(); return (ev.clientX - r.left) / r.width; };
+document.addEventListener("pointerdown", e => {
+  const d = e.target.closest(".tk-split");
+  if (!d) return;
+  e.preventDefault(); d.setPointerCapture(e.pointerId); document.body.classList.add("splitting");
+  const move = ev => setSplit(splitFrac(ev), false);
+  const up = ev => { d.removeEventListener("pointermove", move); d.removeEventListener("pointerup", up); document.body.classList.remove("splitting"); setSplit(splitFrac(ev), true); };
+  d.addEventListener("pointermove", move); d.addEventListener("pointerup", up);
+});
+document.addEventListener("keydown", e => {
+  if (!e.target.closest?.(".tk-split") || !["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+  e.preventDefault();
+  const l = document.querySelector(".tk-listcol").getBoundingClientRect(), w = document.querySelector(".tk-bothmain").getBoundingClientRect();
+  setSplit(l.width / w.width + (e.key === "ArrowRight" ? 0.04 : -0.04), true);
+});
+document.addEventListener("dblclick", e => {
+  if (!e.target.closest(".tk-split")) return;
+  document.documentElement.style.removeProperty("--split-both");
+  try { localStorage.removeItem("tasks-split-both"); } catch {}
+});
+// The pane's width: drag its left edge, or focus the edge and use the
+// arrow keys; double-click resets. Kept per mode (task, chat).
+const paneMode = () => "task";
+const sideW = () => document.querySelector(".tk-side")?.getBoundingClientRect().width || 0;
+const paneMin = 320, paneMax = () => Math.round(Math.min(innerWidth * 0.6, innerWidth - sideW() - 400));
+function setPaneW(w, save) {
+  const m = paneMode(), v = Math.max(paneMin, Math.min(paneMax(), Math.round(w)));
+  document.documentElement.style.setProperty("--pane-w-" + m, v + "px");
+  if (save) try { localStorage.setItem("tasks-pane-" + m, String(v)); } catch {}
+  document.querySelector(".tk-resize")?.setAttribute("aria-valuenow", String(v));
+}
+const paneW = () => document.getElementById("tk-pane")?.getBoundingClientRect().width || 400;
+document.addEventListener("pointerdown", e => {
+  const h = e.target.closest(".tk-resize");
+  if (!h) return;
+  e.preventDefault();
+  h.setPointerCapture(e.pointerId);
+  document.body.classList.add("resizing");
+  const move = ev => setPaneW(innerWidth - ev.clientX, false);
+  const up = ev => {
+    h.removeEventListener("pointermove", move); h.removeEventListener("pointerup", up);
+    document.body.classList.remove("resizing");
+    setPaneW(innerWidth - ev.clientX, true);
+  };
+  h.addEventListener("pointermove", move); h.addEventListener("pointerup", up);
+});
+document.addEventListener("dblclick", e => {
+  if (!e.target.closest(".tk-resize")) return;
+  const m = paneMode();
+  document.documentElement.style.removeProperty("--pane-w-" + m);
+  try { localStorage.removeItem("tasks-pane-" + m); } catch {}
+});
+document.addEventListener("keydown", e => {
+  if (!e.target.closest?.(".tk-resize") || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+  e.preventDefault();
+  const step = e.shiftKey ? 64 : 16;
+  const w = e.key === "ArrowLeft" ? paneW() + step : e.key === "ArrowRight" ? paneW() - step : e.key === "Home" ? paneMax() : paneMin;
+  setPaneW(w, true);
+});
+// Open things close: the row's ×, a form's Cancel (which drops its
+// changes), Esc (the innermost first), or tapping the header again. Focus
+// goes back to what opened it, so the keyboard keeps working.
+const syncDock = () => {
+  for (const o of document.querySelectorAll("[data-open]")) o.classList.toggle("on", !!document.getElementById(o.dataset.open)?.open);
+};
+function closeDetails(d) {
+  if (!d) return;
+  for (const f of d.querySelectorAll("form")) f.reset();
+  d.open = false;
+  syncDock();
+  const back = d.classList.contains("tk-panel") ? document.querySelector(`[data-open="${d.id}"]`) : d.querySelector(":scope > summary");
+  back?.focus({preventScroll: true});
+}
+// Opening a row closes the row open before it: one at a time.
+document.addEventListener("toggle", e => {
+  const d = e.target;
+  if (!d.matches?.("details.tk-row") || !d.open) return;
+  for (const o of document.querySelectorAll("details.tk-row[open]")) if (o !== d) o.open = false;
+}, true);
+document.addEventListener("click", e => {
+  const x = e.target.closest("[data-close]");
+  if (x) { e.preventDefault(); closeDetails(x.closest("details")); return; }
+  const c = e.target.closest("[data-cancel]");
+  if (c) { e.preventDefault(); closeDetails(c.closest("details")); return; }
+  // Dock buttons open a panel of the card (reply, do) and close the other.
+  const b = e.target.closest("[data-open]");
+  if (!b) return;
+  for (const d of document.querySelectorAll("details.tk-panel")) d.open = d.id === b.dataset.open ? !d.open : false;
+  syncDock();
+  const d = document.getElementById(b.dataset.open);
+  if (d?.open) { d.scrollIntoView({block: "nearest", behavior: "smooth"}); d.querySelector("textarea")?.focus({preventScroll: true}); }
+});
+const openable = "details[open]:not(.tk-fold)";
+document.addEventListener("keydown", e => {
+  const pop = e.key === "Escape" && document.querySelector("details.tk-pop[open]");
+  if (pop) { e.preventDefault(); e.stopImmediatePropagation(); pop.open = false; pop.querySelector("summary")?.focus(); }
+}, true);
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  const a = document.activeElement;
+  // In a field: Esc closes the field's own panel, nothing else.
+  let d = a?.closest?.(openable);
+  if (d && d.matches("details.tk-fold")) d = null;
+  if (!d && !a?.matches?.("input, textarea, select")) {
+    d = document.querySelector("details.tk-panel[open]") || [...document.querySelectorAll("details.tk-sub[open]")].pop() || document.querySelector("details.tk-row[open]");
+  }
+  if (d) { e.preventDefault(); closeDetails(d); return; }
+  // Last, the detail pane: Esc closes it, from anywhere in it.
+  const close = document.body.classList.contains("pane-open") && document.querySelector("[data-pane-close]");
+  if (close && (!a?.matches?.("input, textarea, select") || a.closest("#tk-pane"))) {
+    e.preventDefault();
+    const key = document.querySelector("details.tk-row.selected")?.dataset.key;
+    paneGo(close.getAttribute("href")).then(() => {
+      const row = key && [...document.querySelectorAll("details.tk-row")].find(r => r.dataset.key === key);
+      row?.querySelector(":scope > summary")?.focus({preventScroll: true});
+    });
+  }
+});
+// One by one on a keyboard. In the instruction box: Enter sends,
+// Shift+Enter breaks the line, Esc leaves it. Elsewhere: y or n answer
+// while the box is empty, d Done, s or → Skip, ← Back, u Undo, r goes to
+// the box. Not while a panel has focus.
+const instructBox = () => document.querySelector("form.tk-instruct textarea");
+document.addEventListener("input", e => { if (e.target.matches?.("form.tk-instruct textarea")) growBox(e.target); });
+document.addEventListener("click", e => {
+  const chip = e.target.closest("[data-fill]");
+  if (!chip) return;
+  const box = instructBox(); if (!box) return;
+  box.value = chip.dataset.fill; growBox(box); box.focus();
+  chip.closest("details.tk-pop")?.removeAttribute("open");
+});
+document.addEventListener("keydown", e => {
+  if (!document.querySelector(".tk-dock") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const click = sel => { const el = document.querySelector(sel); if (el) { e.preventDefault(); el.click(); } };
+  if (e.target.matches?.("form.tk-instruct textarea")) {
+    if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); e.target.blur(); return; }
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (e.target.value.trim()) e.target.form.requestSubmit(); return; }
+    return;
+  }
+  if (e.target.closest("input, textarea, select, details.tk-panel[open]")) return;
+  switch (e.key) {
+    case "y": case "n": if (!instructBox()?.value.trim()) click(`[data-key=${e.key}]`); break;
+    case "d": click("[data-key=d]"); break;
+    case "u": click("[data-key=u]"); break;
+    case "r": { const b = instructBox(); if (b) { e.preventDefault(); b.focus(); } break; }
+    case "s": case "ArrowRight": click("[data-key=next]"); break;
+    case "ArrowLeft": click("[data-key=back]"); break;
+  }
+}, true);
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && e.target.matches("textarea")) e.target.form?.requestSubmit();
+});
+</script>
+</body>
+</html>{{end}}
+
+{{define "tasks-overview"}}
+<div class="tk-sum">
+  <a class="tk-sum-stat" href="{{.One}}"><b class="tk-sum-n you">{{.Total.Waiting}}</b> waiting on you</a>
+  <a class="tk-sum-stat" href="{{.Lists}}overdue"><b class="tk-sum-n{{if .Total.Overdue}} late{{end}}">{{.Total.Overdue}}</b> overdue</a>
+  {{if .Total.Answered}}<span class="tk-sum-stat"><b class="tk-sum-n">{{.Total.Answered}}</b> answered</span>{{end}}
+  <span class="tk-sum-sp"></span>
+  <nav class="tk-density" aria-label="Density"><a href="{{.Compact}}"{{if eq .Density "compact"}} class="on" aria-current="page"{{end}}>Compact</a><a href="{{.Detail}}"{{if eq .Density "detail"}} class="on" aria-current="page"{{end}}>Detail</a></nav>
+  {{if .Total.Waiting}}<a class="tk-btn primary" href="{{.One}}">One by one</a>{{end}}
+</div>
+{{$many := gt (len .Workspaces) 1}}{{$detail := eq .Density "detail"}}{{range .Workspaces}}<section class="tk-sec">
+  {{if $many}}<h2>{{.Name}}</h2>{{else}}<h2>Agents</h2>{{end}}
+  {{if $detail}}{{if .Cards}}<div class="tk-dcards">{{range .Cols}}<div class="tk-dcol">{{range .}}{{template "tasks-dcard" .}}{{end}}</div>{{end}}</div>{{end}}
+  {{if .Rest}}<ul class="tk-arows{{if .Cards}} below{{end}}">{{range .Rest}}{{template "tasks-arow" .}}{{end}}</ul>{{end}}
+  {{else}}<ul class="tk-arows">{{range .Agents}}{{template "tasks-arow" .}}{{end}}</ul>{{end}}
+</section>{{end}}
+{{end}}
+
+{{define "tasks-astate"}}{{if eq .Live "working"}}<a class="tk-astate" href="{{.Chat}}"><span class="ok">working</span>{{with .Doing}} · {{.}}{{end}}</a>{{else if .Live}}<a class="tk-astate" href="{{.Chat}}">{{.Live}}{{with .Doing}} · {{.}}{{end}}</a>{{else}}<span class="tk-astate">offline{{with .Last}} · last {{.}}{{end}}</span>{{end}}{{end}}
+
+{{define "tasks-arow"}}<li class="tk-arow{{if .Quiet}} quiet{{end}}" data-href="{{.Href}}">
+  <a class="tk-arow-main" href="{{.Href}}">{{template "tasks-tile" (tile .Name .Avatar "md" .Live)}}<span class="tk-arow-who"><b>{{.Name}}</b>{{with .Title}}<small>{{.}}</small>{{end}}</span></a>
+  {{template "tasks-astate" .}}
+  <span class="tk-arow-cts">{{if .Waiting}}<a class="you" href="{{.Href}}">{{.Waiting}} for you</a>{{end}}{{if .Overdue}}<a class="late" href="{{.LateHref}}">{{.Overdue}} overdue</a>{{end}}<span class="n" title="{{.Open}} open">{{.Open}}</span></span>
+</li>{{end}}
+
+{{define "tasks-dcard"}}<div class="tk-dcard{{if .Quiet}} quiet{{end}}" data-href="{{.Href}}" style="order: {{.Order}}">
+  <div class="tk-dcard-head"><a class="tk-arow-main" href="{{.Href}}">{{template "tasks-tile" (tile .Name .Avatar "md" .Live)}}<span class="tk-arow-who"><b>{{.Name}}</b>{{with .Title}}<small>{{.}}</small>{{end}}</span></a>{{if .Overdue}}<a class="tk-dcard-late" href="{{.LateHref}}">{{.Overdue}} overdue</a>{{end}}</div>
+  <p class="tk-dstate">{{template "tasks-astate" .}}</p>
+  <ul class="tk-ditems">{{range .Items}}<li><a href="{{.Href}}"><span class="tk-tag{{if .Late}} late{{end}}">{{if .Late}}overdue{{else}}you{{end}}</span><span class="tk-ditem-t">{{.Title}}</span>{{if .Due}}<span class="tk-ddue{{if .Late}} late{{else if .Soon}} soon{{end}}">{{.Due}}</span>{{end}}</a></li>{{end}}{{if .More}}<li class="more"><a href="{{.Href}}">+{{.More}} more</a></li>{{end}}</ul>
+  <p class="tk-dmeta">{{if .Waiting}}<span class="you">{{.Waiting}} for you</span>{{end}}{{if .Overdue}}<span class="late">{{.Overdue}} overdue</span>{{end}}{{if .Answered}}<span class="ok">{{.Answered}} answered</span>{{end}}{{if .Others}}<span>{{.Others}} waiting on others</span>{{end}}<span>{{.Open}} open</span>{{if and .Live .Last}}<span>last {{.Last}}</span>{{end}}</p>
+</div>{{end}}
+
+{{define "tasks-list"}}{{if .Groups}}<div class="tk-listcard">{{range .Groups}}<details class="tk-sec tk-fold" open>
+  <summary><svg class="tk-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg><h2>{{.Title}} <span class="tk-n">{{len .Rows}}</span></h2></summary>
+  <ul class="tk-rows">{{range .Rows}}<li>{{template "tasks-row" .}}</li>{{end}}</ul>
+</details>{{end}}</div>{{template "tasks-legend"}}{{else}}<div class="tk-clear"><p class="big">All clear.</p><p>{{.Empty}}</p></div>{{end}}{{end}}
+
+{{define "tasks-agent"}}
+{{with .Action}}{{template "tasks-action" .}}{{end}}
+{{with .Next}}<details class="tk-nextline"><summary><b>Next session</b> {{.}}</summary></details>{{end}}
+{{if .Groups}}<div class="tk-listcard">{{end}}{{range .Groups}}<details class="tk-sec tk-fold"{{if not .Closed}} open{{end}}>
+  <summary><svg class="tk-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg><h2>{{.Title}} <span class="tk-n">{{len .Rows}}</span></h2></summary>
+  <ul class="tk-rows">{{range .Rows}}<li>{{template "tasks-row" .}}</li>{{end}}</ul>
+</details>{{else}}<div class="tk-clear"><p class="big">All clear.</p><p>{{.Name}} has nothing open.</p></div>{{end}}{{if .Groups}}</div>{{end}}
+{{if .Groups}}{{template "tasks-legend"}}{{end}}
+{{end}}
+
+{{define "tasks-row"}}<details class="tk-row{{if .Selected}} selected{{end}}" data-key="{{.WS}}/{{.Key}}">
+<summary{{with .Href}} data-href="{{.}}"{{end}}>
+  <span class="tk-dot {{.Dot}}" title="{{.StateText}}" role="img" aria-label="{{.StateText}}"></span>
+  <span class="tk-rowtext"><span class="tk-title">{{.Headline}}{{if eq .Priority "P1"}}<svg class="tk-flag" viewBox="0 0 24 24" role="img" aria-label="P1"><title>P1</title><path d="M6 21V4h11l-2 4 2 4H6"/></svg>{{end}}</span>{{if or .Answered .ShowAgent}}
+  <span class="tk-meta">{{if .Answered}}<span class="tk-chip ok">Answered</span>{{end}}{{if .ShowAgent}}<span class="tk-chip">{{.Agent}}</span>{{end}}</span>{{end}}</span>
+  {{with .DueLabel}}<span class="tk-due{{if $.Late}} late{{else if $.Soon}} soon{{else if $.DueRaw}} raw{{end}}">{{.}}</span>{{end}}
+</summary>
+<div class="tk-open">
+  <button type="button" class="tk-x" data-close aria-label="Close">×</button>
+  <p class="tk-state"><span class="tk-dot {{.Dot}}" aria-hidden="true"></span>{{.StateText}}{{with .Priority}} · {{.}}{{end}}{{with .DueText}} · due {{.}}{{end}} · #{{trimID .ID}}</p>
+  {{with .Desc}}<p class="tk-desc">{{.}}</p>{{end}}
+  {{template "tasks-ask" .}}
+  {{with .Detail}}<p class="tk-detail">{{.}}</p>{{end}}
+  <details class="tk-sub"><summary>Reply</summary>{{template "tasks-reply" (replyArgs . .Back)}}</details>
+  {{with .Edit}}<details class="tk-sub"><summary>Change status, priority, due</summary>{{template "tasks-edit" .}}</details>{{end}}
+</div>
+</details>{{end}}
+
+{{define "tasks-ask"}}
+  {{if .Answered}}<div class="tk-answered"><span>Answered, waiting for {{.Agent}} to apply</span>{{range .Answers}}<p>{{.Text}}</p>{{end}}</div>{{end}}
+  {{if .Question}}<p class="tk-q">{{.Question}}</p>{{else if .Note}}<p class="tk-note">{{.Note}}</p>{{end}}
+  {{with .Rec}}<div class="tk-rec"><span>Recommends</span><p>{{.}}</p></div>{{end}}
+  {{with .Default}}<div class="tk-def"><span>If no answer{{with $.By}} by {{.}}{{end}}</span><p>{{.}}</p></div>{{end}}
+{{end}}
+
+{{define "tasks-reply"}}<form class="tk-post tk-form tk-reply" method="post" action="/tasks/answer" enctype="multipart/form-data" data-images data-next="{{.Next}}" data-busy="Sending…">
+  <input type="hidden" name="ws" value="{{.Row.WS}}"><input type="hidden" name="agent" value="{{.Row.Agent}}"><input type="hidden" name="id" value="{{trimID .Row.ID}}">{{if .Row.ToChat}}<input type="hidden" name="to" value="chat">{{end}}
+  <div class="tk-thumbs" aria-live="polite"></div>
+  <textarea name="text" rows="3" placeholder="{{if .Row.ToChat}}Goes to {{.Row.Agent}}'s live chat{{else}}Your answer goes to {{.Row.Agent}}'s inbox{{end}}" aria-label="Reply"></textarea>
+  <div class="tk-btns"><label class="tk-attach" title="Attach an image"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg><span class="tk-sr">Attach an image</span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label><span class="tk-bsp"></span><button type="button" data-cancel>Cancel</button><button type="submit" class="primary">{{if .Row.ToChat}}Send to chat{{else}}Send reply{{end}}</button></div>
+</form>{{end}}
+
+{{define "tasks-edit"}}<form class="tk-post tk-form" method="post" action="/tasks/edit" data-next="{{.Back}}">
+  <input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="hash" value="{{.Hash}}"><input type="hidden" name="back" value="{{.Back}}">
+  <div class="tk-fields">
+    <label>Status<select name="state">{{range .States}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>
+    <label>Waiting on<input name="who" value="{{.Who}}" placeholder="who"></label>
+    {{if .HasPriority}}<label>Priority<select name="priority">{{range .Priorities}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    {{if .HasDue}}<label>Due<input name="due" value="{{.Due}}"></label>{{end}}
+    <label>Owner<input name="owner" value="{{.Owner}}"></label>
+    <label class="wide">Note<textarea name="note" rows="3">{{.Note}}</textarea></label>
+  </div>
+  <div class="tk-btns"><button type="button" data-cancel>Cancel</button><button type="submit" class="primary">Save to tracker</button></div>
+</form>{{end}}
+
+{{define "tasks-action"}}<div class="tk-action">
+  <p><span class="tk-live {{.Class}}"></span><span><b>{{.Agent}}</b> is {{.State}}. {{plural .Pending "answer"}} waiting to be applied.</span></p>
+  {{if .Tell}}<form class="tk-post" method="post" action="{{.SendURL}}" data-next="{{.Next}}" data-busy="Telling {{.Agent}}…"><input type="hidden" name="text" value="{{.Text}}"><button type="submit" class="primary">Tell {{.Agent}}</button></form>
+  {{else if .Start}}<form class="tk-post" method="post" action="{{.StartURL}}" data-next="{{.Next}}" data-busy="Starting {{.Agent}}…"><button type="submit" class="primary">Start {{.Agent}} to apply</button></form>{{with .Starts}}<small>Opens in {{.}}.</small>{{end}}
+  {{else}}{{with .Note}}<small>{{.}}</small>{{end}}{{end}}
+</div>{{end}}
+
+{{define "tasks-sweep"}}{{$sv := .}}
+{{if .Empty}}<div class="tk-clear"><p class="big">All clear.</p><p>{{.Empty}}</p></div>
+{{else if .End}}<div class="tk-clear done"><p class="big">Done.</p><p>You went through {{plural .Total "item"}}.</p></div>
+  {{range .Actions}}{{template "tasks-action" .}}{{end}}
+  {{with .Outcomes}}<section class="tk-sec"><h2>This run</h2><ul class="tk-plain tk-outcomes">{{range .}}<li><a href="{{.Href}}"><span class="tk-what {{.What}}">{{.What}}</span><span>{{.Title}}</span><span class="tk-chip">{{.Agent}}</span></a></li>{{end}}</ul></section>{{end}}
+  <a class="tk-big quiet" href="{{.Again}}">Start again</a>
+{{else}}
+  <div class="tk-progress" aria-hidden="true"><span style="width: {{.Percent}}%"></span></div>
+  <p class="tk-pos">{{.Pos}} of {{.Total}}</p>
+  <div id="tk-prep" data-poll>{{with .Prep}}<div class="tk-prep{{if .Prepping}} on{{end}}">
+    {{if .Prepping}}<p><span class="tk-dots"><i></i><i></i><i></i></span> Prepping… {{.Have}} of {{.Of}} have a recommendation.</p>
+    {{else}}<p>{{.Have}} of {{.Of}} have a recommendation.</p>{{end}}
+    {{if .CanSend}}{{if not .Prepping}}<form class="tk-post" method="post" action="{{.SendURL}}" data-next="{{.Next}}" data-busy="Asking {{.Agent}}…"><input type="hidden" name="text" value="{{.Text}}"><button type="submit" class="tk-btn primary">Prep</button></form>{{end}}
+    {{else if .CanStart}}<form class="tk-post" method="post" action="{{.StartURL}}" data-next="{{$.Next}}" data-busy="Starting {{.Agent}}…"><button type="submit" class="tk-btn">Start {{.Agent}} to prep</button></form>
+    {{else}}<small>{{.Agent}} is at a prompt; answer it in its session first.</small>{{end}}
+  </div>{{end}}</div>
+  {{if .Gone}}<article class="tk-one"><p class="tk-note">{{.Gone}}</p></article>{{else}}{{with .Row}}
+  <article class="tk-one">
+    <p class="tk-one-meta">{{template "tasks-tile" (tile .Agent .Avatar "sm")}}<span class="tk-who">{{.Agent}}</span><span class="tk-dot {{.Dot}}"></span><span>{{.StateText}}</span></p>
+    <h2>{{.Headline}}</h2>
+    <p class="tk-chips"><span class="tk-chip">{{.Agent}}</span>{{with .Priority}}<span class="tk-chip{{if eq . "P1"}} p1{{end}}">{{.}}</span>{{end}}{{with .DueLabel}}<span class="tk-chip{{if $sv.Row.Late}} late{{end}}">{{.}}</span>{{end}}<span class="tk-chip">#{{trimID .ID}}</span></p>
+    {{with .Desc}}<p class="tk-desc">{{.}}</p>{{end}}
+    <div id="tk-cardask" data-poll>{{template "tasks-ask" .}}</div>
+    {{with .Detail}}<p class="tk-detail">{{.}}</p>{{end}}
+  </article>
+  {{with .Edit}}<details class="tk-panel" id="do"><summary class="tk-sr">Change</summary>{{template "tasks-do" (doArgs . $sv.EditNext)}}</details>{{end}}
+  {{with $sv.Merge}}<details class="tk-panel" id="merge"><summary class="tk-sr">Merge</summary><form class="tk-post tk-merge" method="post" action="/tasks/answer" data-next="{{$sv.MergeNext}}" data-undo data-busy="Sending…">
+    <input type="hidden" name="ws" value="{{$sv.Row.WS}}"><input type="hidden" name="agent" value="{{$sv.Row.Agent}}"><input type="hidden" name="id" value="{{trimID $sv.Row.ID}}">
+    <p class="tk-pophead">Merge #{{trimID $sv.Row.ID}} into…</p><ul>{{range .}}<li><button type="submit" name="text" value="{{.Value}}">{{.Label}}</button></li>{{end}}</ul></form></details>{{end}}
+  <form class="tk-post" id="decide" method="post" action="/tasks/answer" data-next="{{$sv.AnswerNext}}" data-undo data-busy="Sending…">
+    <input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{trimID .ID}}">
+  </form>
+  <form class="tk-post" id="doneform" method="post" action="/tasks/done" data-next="{{$sv.DoneNext}}" data-undo data-busy="Moving to Completed…">
+    <input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{trimID .ID}}"><input type="hidden" name="hash" value="{{$sv.Hash}}">
+  </form>
+  {{end}}{{end}}
+  {{with .UndoID}}<form class="tk-post" id="undoform" method="post" action="/tasks/undo" data-next="{{$sv.UndoNext}}" data-busy="Undoing…"><input type="hidden" name="id" value="{{.}}"></form>{{end}}
+  <div class="tk-dock">
+    {{with .Row}}<div>  <form class="tk-post tk-instruct" method="post" action="/tasks/answer" data-next="{{$sv.AnswerNext}}" data-undo data-busy="Sending…">
+    <input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{trimID .ID}}">
+    <div class="tk-qchips">
+      <button type="button" data-fill="Do it.">Do it</button><button type="button" data-fill="Close it.">Close it</button><button type="button" data-fill="Park it till Monday.">Park till Mon</button><button type="button" data-fill="Ask me again on Friday.">Ask me Fri</button>
+      {{with $sv.Others}}<details class="tk-pop tk-hand"><summary>Hand to…</summary><div class="tk-popbody"><p class="tk-pophead">Hand it to</p><ul>{{range .}}<li><button type="button" data-fill="Hand this to {{.}}.">{{.}}</button></li>{{end}}</ul></div></details>{{end}}
+    </div>
+    <div class="tk-ibox"><textarea name="text" rows="1" placeholder="Tell {{.Agent}} what to do…" aria-label="Instruction for {{.Agent}}"></textarea>
+      <button type="submit" class="tk-sendbtn" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></div>
+  </form>
+</div>{{end}}
+    <div id="tk-decide" data-poll>{{with .Row}}{{if or .Rec .Mine}}<div class="tk-decide">
+      <button type="submit" form="decide" name="text" value="No." data-key="n">No</button>
+      {{if .Rec}}<button type="submit" form="decide" name="text" value="Yes, as recommended." class="primary" data-key="y">Yes, as recommended</button>{{else}}<button type="submit" form="decide" name="text" value="Yes." class="primary" data-key="y">Yes</button>{{end}}
+    </div>{{end}}{{end}}</div>
+    <div class="tk-nav">
+      {{if .BackHref}}<a class="tk-arrow" href="{{.BackHref}}" data-key="back" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>{{else}}<span class="tk-arrow off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></span>{{end}}
+      {{if .Row}}<button type="submit" form="doneform" data-key="d" title="Done (d)">Done</button>{{if .Merge}}<button type="button" data-open="merge">Merge</button>{{end}}{{if .Row.Edit}}<button type="button" data-open="do">Change</button>{{end}}{{end}}
+      {{if .UndoID}}<button type="submit" form="undoform" data-key="u" title="Undo (u)">Undo</button>{{end}}
+      <a class="tk-skip" href="{{if .Row}}{{.SkipNext}}{{else}}{{.Next}}{{end}}" data-key="next">{{if .Row}}Skip{{else}}Next{{end}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
+    </div>
+  </div>
+{{end}}{{end}}
+
+{{define "tasks-do"}}<form class="tk-post tk-form" method="post" action="/tasks/edit" data-next="{{.Next}}">
+  {{with .Edit}}<input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="hash" value="{{.Hash}}"><input type="hidden" name="back" value="{{$.Next}}"><input type="hidden" name="state" value="{{.State}}">
+  <div class="tk-seg">
+    <button type="submit" name="state" value="In progress">In progress</button>
+    <button type="submit" name="state" value="Not started">Not started</button>
+    <button type="submit" name="state" value="Parked">Parked</button>
+    <button type="submit" name="state" value="Waiting on">Waiting on…</button>
+  </div>
+  <div class="tk-fields">
+    <label>Waiting on<input name="who" value="{{.Who}}" placeholder="who, for Waiting on…"></label>
+    {{if .HasPriority}}<label>Priority<select name="priority">{{range .Priorities}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></label>{{end}}
+    {{if .HasDue}}<label>Due<input name="due" value="{{.Due}}"></label>{{end}}
+    <label class="wide">Note<textarea name="note" rows="3">{{.Note}}</textarea></label>
+  </div>
+  <div class="tk-btns"><button type="button" data-cancel>Cancel</button><button type="submit" class="primary">Save</button></div>{{end}}
+</form>{{end}}
+
+{{define "tasks-legend"}}<ul class="tk-legend" aria-label="What the dots mean">
+  <li><span class="tk-dot me"></span>Waiting on you</li>
+  <li><span class="tk-dot answered"></span>Answered, not yet applied</li>
+  <li><span class="tk-dot progress"></span>In progress</li>
+  <li><span class="tk-dot waiting"></span>Waiting on others</li>
+  <li><span class="tk-dot todo"></span>Not started</li>
+  <li><span class="tk-dot parked"></span>Parked</li>
+</ul>{{end}}
+
+{{define "tasks-tile"}}<span class="tk-tile {{.Class}}">{{if .Avatar}}<img class="tk-av img {{.Class}}" src="{{.Avatar}}" alt="" aria-hidden="true">{{else}}<span class="tk-av {{.Class}}" style="--h: {{hue .Name}}" aria-hidden="true">{{initial .Name}}</span>{{end}}{{with .Live}}<i class="tk-presence {{.}}" title="{{if eq . "off"}}Not running{{else}}Live · {{.}}{{end}}"></i>{{end}}</span>{{end}}
+
+{{define "tasks-theme"}}<div class="tk-theme" role="group" aria-label="Theme">
+  <a href="/tasks/theme?{{themeQuery "light" .Here}}" role="button" data-theme-pick="light" aria-label="Light" title="Light" aria-pressed="{{eq .Theme "light"}}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></a>
+  <a href="/tasks/theme?{{themeQuery "dark" .Here}}" role="button" data-theme-pick="dark" aria-label="Dark" title="Dark" aria-pressed="{{eq .Theme "dark"}}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></a>
+  <a href="/tasks/theme?{{themeQuery "system" .Here}}" role="button" data-theme-pick="system" aria-label="System" title="System" aria-pressed="{{eq .Theme "system"}}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></a>
+</div>{{end}}
+
+{{define "tasks-pane"}}<aside class="tk-pane" id="tk-pane" aria-label="Details"><div class="tk-resize" role="separator" aria-orientation="vertical" aria-label="Resize the panel" tabindex="0" title="Drag to resize; double-click to reset"></div>{{with .Detail}}
+<div class="tk-phead">
+  <span class="tk-ptag">Task</span>
+  <a class="tk-pclose" href="{{.Close}}" data-pane-close aria-label="Close">×</a>
+</div>
+{{template "tasks-taskbody" .}}
+{{end}}</aside>{{end}}
+
+{{define "tasks-chat"}}<div class="tk-chat" id="tk-chat">
+{{if .Live}}<div class="tk-chatlog" id="tk-chatlog">{{range .Entries}}{{if eq .Kind "you"}}<div class="tk-msg you"><div class="tk-bubble">{{with .Images}}<span class="tk-shots">{{range .}}<a class="tk-img" href="{{.}}"><img src="{{.}}" alt="Attached image" loading="lazy"></a>{{end}}</span>{{end}}{{.Text}}</div><time>{{.At.Local.Format "15:04"}}</time></div>
+{{else if eq .Kind "agent"}}<div class="tk-msg agent"><div class="tk-text">{{.HTML}}</div><time>{{.At.Local.Format "15:04"}}</time></div>
+{{else}}<details class="tk-steps"><summary>{{.Summary}}</summary><ul>{{range .Tools}}<li>{{.}}</li>{{end}}</ul></details>{{end}}{{else}}<p class="tk-muted">Nothing said yet in this session.</p>{{end}}{{if eq .State "working"}}<div class="tk-typing" role="status"><span class="tk-dots"><i></i><i></i><i></i></span>{{.Agent}} is working…</div>{{end}}</div>
+{{with .Note}}<p class="tk-muted">{{.}}</p>{{end}}
+{{if .CanSend}}<form class="tk-composer" data-compose method="post" action="{{.SendURL}}" enctype="multipart/form-data">
+  <div class="tk-thumbs" aria-live="polite"></div>
+  <textarea name="text" rows="1" placeholder="Message {{.Agent}}…" aria-label="Message {{.Agent}}"></textarea>
+  <div class="tk-cbar">
+    <label class="tk-attach" title="Attach an image"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg><span class="tk-sr">Attach an image</span><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label>
+    <span class="tk-cstatus" role="status"></span>
+    <button type="submit" class="tk-sendbtn" aria-label="Send" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+  </div>
+</form>{{end}}
+{{else if .Starting}}<div class="tk-pempty"><p>Starting {{.Agent}}…</p></div>
+{{else}}<div class="tk-pempty"><p><b>{{.Agent}}</b> is not running.</p>
+{{if .Start}}<form class="tk-post" method="post" action="{{.StartURL}}" data-next="{{.Next}}" data-busy="Starting {{.Agent}}…"><button type="submit" class="primary">Start {{.Agent}}</button></form>{{with .Starts}}<small>Opens in {{.}}.</small>{{end}}{{end}}
+{{with .Note}}<small>{{.}}</small>{{end}}</div>{{end}}
+</div>{{end}}
+
+{{define "tasks-taskbody"}}{{$d := .}}{{with .Row}}<div class="tk-pbody">
+  <p class="tk-pmeta">{{template "tasks-tile" (tile .Agent .Avatar "sm")}}<span class="tk-who">{{.Agent}}</span><span>{{.WS}}</span><span class="tk-id">#{{trimID .ID}}</span></p>
+  <h2 class="tk-ptitle">{{.Headline}}</h2>
+  {{with .Desc}}<p class="tk-pdesc">{{.}}</p>{{end}}
+  {{with .Edit}}<form class="tk-post tk-props" id="pedit" method="post" action="/tasks/edit" data-next="{{.Back}}">
+    <input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="hash" value="{{.Hash}}"><input type="hidden" name="back" value="{{.Back}}">
+    <div class="tk-prop"><span>Agent</span><span class="v">{{$d.Row.Agent}}</span></div>
+    <div class="tk-prop"><span>Workspace</span><span class="v">{{$d.Row.WS}}</span></div>
+    <div class="tk-prop"><label for="p-state">Status</label><span class="v tk-pair"><span class="tk-dot {{$d.Row.Dot}}" aria-hidden="true"></span><select id="p-state" name="state">{{range .States}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select><input name="who" value="{{.Who}}" placeholder="who" aria-label="Waiting on"></span></div>
+    {{if .HasPriority}}<div class="tk-prop"><label for="p-pri">Priority</label><span class="v"><select id="p-pri" name="priority">{{range .Priorities}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select></span></div>{{end}}
+    {{if .HasDue}}<div class="tk-prop"><label for="p-due">Due</label><span class="v"><input id="p-due" name="due" value="{{.Due}}" placeholder="Empty"{{if $d.Row.Late}} class="late"{{end}}></span></div>{{end}}
+    <div class="tk-prop"><label for="p-owner">Owner</label><span class="v"><input id="p-owner" name="owner" value="{{.Owner}}" placeholder="Empty"></span></div>
+    {{with $d.Since}}<div class="tk-prop"><span>Since</span><span class="v">{{.}}</span></div>{{end}}
+  </form>{{end}}
+  {{template "tasks-ask" .}}
+  {{if or .Rec .Mine}}<form class="tk-post tk-decide-inline" method="post" action="/tasks/answer" data-next="{{.Back}}" data-busy="Sending…">
+    <input type="hidden" name="ws" value="{{.WS}}"><input type="hidden" name="agent" value="{{.Agent}}"><input type="hidden" name="id" value="{{trimID .ID}}">{{if .ToChat}}<input type="hidden" name="to" value="chat">{{end}}
+    <button type="submit" name="text" value="No.">No</button>{{if .Rec}}<button type="submit" name="text" value="Yes, as recommended." class="primary">Yes, as recommended</button>{{else}}<button type="submit" name="text" value="Yes." class="primary">Yes</button>{{end}}
+  </form>{{end}}
+  <section class="tk-preply"><h3>Reply</h3>{{template "tasks-reply" (replyArgs . .Back)}}</section>
+  {{with .Edit}}<section class="tk-pmore"><h3><label for="p-note">Status note</label></h3><textarea id="p-note" name="note" rows="4" form="pedit">{{.Note}}</textarea></section>{{end}}
+  {{with .Detail}}<section class="tk-pmore"><h3>More</h3><p>{{.}}</p></section>{{end}}
+</div>
+{{if .Edit}}<footer class="tk-pfoot"><span>{{.StateText}}</span><button type="button" data-cancel-pane>Cancel</button><button type="submit" form="pedit" class="primary">Save</button></footer>{{end}}
+{{else}}<div class="tk-pempty"><p>Select a task to see it here.</p></div>{{end}}{{end}}
+
+{{define "tasks-top"}}<header class="tk-top">
+  <a class="tk-mark" href="/tasks" title="GoAgentic Tasks"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="6.5" class="m-bg"/><circle cx="8.5" cy="9" r="2.2" class="m-fg"/><path d="M12.5 9h4M7 15.5l2.2 2.2 4.3-4.3M15.5 16h1.5" class="m-ln"/></svg><span class="tk-sr">GoAgentic Tasks</span></a>
+  <details class="tk-pop tk-space"><summary>{{.Nav.SpaceLabel}}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+    <div class="tk-popbody"><p class="tk-pophead">Space</p><ul>{{range .Nav.Spaces}}<li><a href="{{.Href}}"{{if .Current}} class="current" aria-current="true"{{end}}>{{.Label}}</a></li>{{end}}</ul></div></details>
+  <form class="tk-search" method="get" action="/tasks/search" role="search">
+    {{with .Nav.Space}}<input type="hidden" name="ws" value="{{.}}">{{end}}
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+    <input type="search" name="q" value="{{with .Search}}{{.Q}}{{end}}" placeholder="Search tasks and agents" aria-label="Search tasks and agents" autocomplete="off" spellcheck="false">
+    <kbd class="tk-kbd">⌘K</kbd>
+    <div class="tk-results" role="listbox" hidden></div>
+  </form>
+  <a class="tk-iconbtn tk-searchicon" href="/tasks/search{{with .Nav.Space}}?ws={{.}}{{end}}" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></a>
+  <div class="tk-topright">
+    <details class="tk-pop tk-livepop"><summary title="Agents running now"><i class="tk-presence {{if .Nav.Live}}idle{{else}}off{{end}}"></i>{{len .Nav.Live}} live</summary>
+      <div class="tk-popbody right"><p class="tk-pophead">Running now</p>{{if .Nav.Live}}<ul>{{range .Nav.Live}}<li><a href="{{.Href}}">{{template "tasks-tile" (tile .Label .Avatar "xs" .Live)}}<span>{{.Label}}</span><small>{{.Live}}</small></a></li>{{end}}</ul>{{else}}<p class="tk-muted">No agent is running.</p>{{end}}</div></details>
+    <div class="tk-toptheme">{{template "tasks-theme" .}}</div>
+    <details class="tk-pop tk-more"><summary aria-label="More"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></summary>
+      <div class="tk-popbody right">
+        <div class="tk-moretheme">{{template "tasks-theme" .}}</div>
+        <ul class="tk-morenav">{{range .Nav.Views}}<li><a href="{{.Href}}"{{if .Current}} class="current"{{end}}><span>{{.Label}}</span>{{if .Count}}<span class="tk-n">{{.Count}}</span>{{end}}</a></li>{{end}}
+        {{range .Nav.Workspaces}}{{range .Agents}}<li><a href="{{.Href}}"{{if .Current}} class="current"{{end}}>{{template "tasks-tile" (tile .Label .Avatar "xs" .Live)}}<span>{{.Label}}</span>{{if .Count}}<span class="tk-n you">{{.Count}}</span>{{end}}</a></li>{{end}}{{end}}</ul>
+        <ul><li><a href="/">Classic view</a></li></ul>
+      </div></details>
+  </div>
+</header>{{end}}
+
+{{define "tasks-search"}}{{if .Hits}}<ul class="tk-hits">{{range .Hits}}<li><a href="{{.Href}}">{{if eq .Kind "agent"}}{{template "tasks-tile" (tile .Title .Avatar "sm")}}{{else}}<span class="tk-dot {{.Dot}}" aria-hidden="true"></span>{{end}}<span class="tk-hittext"><b>{{.Title}}</b><small>{{if eq .Kind "item"}}{{.Agent}} · {{end}}{{.Sub}}</small></span></a></li>{{end}}</ul>
+{{else if .Q}}<div class="tk-clear"><p class="big">Nothing found.</p><p>Try another word.</p></div>
+{{else}}<p class="tk-muted">Type in the search box above.</p>{{end}}{{end}}

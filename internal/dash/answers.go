@@ -104,6 +104,12 @@ const maxAnswer = 4000
 // creating the inbox if the agent has none. Every body line is quoted, so an
 // answer can never start a heading of its own.
 func AppendAnswer(a *Agent, principal, id, text string, now time.Time) error {
+	return appendAnswer(a, principal, id, text, now, false)
+}
+
+// appendAnswer writes the entry; inChat says the answer also went to the
+// agent's live chat, so an agent that applied it there only marks it done.
+func appendAnswer(a *Agent, principal, id, text string, now time.Time, inChat bool) error {
 	id = strings.TrimPrefix(strings.TrimSpace(id), "#")
 	text = strings.TrimSpace(strings.ReplaceAll(text, "\r", ""))
 	if !answerIDRe.MatchString(id) {
@@ -126,9 +132,18 @@ func AppendAnswer(a *Agent, principal, id, text string, now time.Time) error {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "\n## %s — answer #%s (%s, via dash) — UNPROCESSED\n\n", now.Format(answerTime), id, firstName(principal))
-	fmt.Fprintf(&b, "%s answered #%s **%s** from the web dashboard. Apply it as their word on that item: update the row, act on it within your autonomy, then mark this entry PROCESSED.\n\n",
-		firstName(principal), id, item.Headline())
+	via := "via dash"
+	if inChat {
+		via = "via dash, sent to chat"
+	}
+	fmt.Fprintf(&b, "\n## %s — answer #%s (%s, %s) — UNPROCESSED\n\n", now.Format(answerTime), id, firstName(principal), via)
+	if inChat {
+		fmt.Fprintf(&b, "%s answered #%s **%s** from the web dashboard, and it was sent to your live chat as \"Re #%s\". If you applied it there, just mark this entry PROCESSED; if not, apply it as their word on that item, then mark it PROCESSED.\n\n",
+			firstName(principal), id, item.Headline(), id)
+	} else {
+		fmt.Fprintf(&b, "%s answered #%s **%s** from the web dashboard. Apply it as their word on that item: update the row, act on it within your autonomy, then mark this entry PROCESSED.\n\n",
+			firstName(principal), id, item.Headline())
+	}
 	for _, line := range strings.Split(text, "\n") {
 		b.WriteString(strings.TrimRight("> "+line, " ") + "\n")
 	}
