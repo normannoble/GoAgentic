@@ -502,21 +502,22 @@ func (s *webServer) tasksAnswer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "the answer is empty", http.StatusBadRequest)
 		return
 	}
-	var item *Item
-	for i := range a.Open {
-		if strings.TrimPrefix(a.Open[i].ID, "#") == id {
-			item = &a.Open[i]
-		}
+	// Check what appendAnswer would refuse before anything is saved or sent:
+	// a chat message cannot be unsent, so a refusal after it would send it
+	// twice on a retry. Checked again below once the image lines are in.
+	check := text
+	if check == "" {
+		check = "(images)"
 	}
-	if item == nil {
-		http.Error(w, fmt.Sprintf("#%s is not an open item of %s", id, a.Name), http.StatusBadRequest)
+	item, err := checkAnswer(a, id, check)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	// The item's own reply box and Yes/No ask for the chat; One by one
 	// keeps its answers in the inbox and tells the agent once at the end.
 	toChat := r.FormValue("to") == "chat" && s.takesMessages(ta.ws, a)
 	var paths []string
-	var err error
 	if toChat {
 		paths, err = s.saveImages(r)
 	} else {
@@ -527,14 +528,20 @@ func (s *webServer) tasksAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	text = withImages(text, paths)
+	if _, err := checkAnswer(a, id, text); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if toChat {
 		prompt := s.src.Prompt
 		if prompt == nil {
 			prompt = livePrompt
 		}
 		if err := prompt(a.Live.PaneID, "Re #"+id+" "+item.Headline()+": "+text); err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
+			// The session went away since the page was drawn: keep the
+			// answer in the inbox rather than lose it. Its images stay
+			// where the chat path saved them; the text names them.
+			toChat = false
 		}
 	}
 	s.mu.Lock()

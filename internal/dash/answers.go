@@ -107,28 +107,37 @@ func AppendAnswer(a *Agent, principal, id, text string, now time.Time) error {
 	return appendAnswer(a, principal, id, text, now, false)
 }
 
+// checkAnswer is what appendAnswer refuses, so a caller can check an answer
+// before it goes anywhere else (the chat cannot be unsent): a good id of an
+// open item, and a text that is neither empty nor over maxAnswer.
+func checkAnswer(a *Agent, id, text string) (*Item, error) {
+	id = strings.TrimPrefix(strings.TrimSpace(id), "#")
+	text = strings.TrimSpace(strings.ReplaceAll(text, "\r", ""))
+	if !answerIDRe.MatchString(id) {
+		return nil, errors.New("bad item id")
+	}
+	if text == "" {
+		return nil, errors.New("the answer is empty")
+	}
+	if len(text) > maxAnswer {
+		return nil, fmt.Errorf("the answer is over %d characters: say it in a session instead", maxAnswer)
+	}
+	for i := range a.Open {
+		if strings.TrimPrefix(a.Open[i].ID, "#") == id {
+			return &a.Open[i], nil
+		}
+	}
+	return nil, fmt.Errorf("#%s is not an open item of %s", id, a.Name)
+}
+
 // appendAnswer writes the entry; inChat says the answer also went to the
 // agent's live chat, so an agent that applied it there only marks it done.
 func appendAnswer(a *Agent, principal, id, text string, now time.Time, inChat bool) error {
 	id = strings.TrimPrefix(strings.TrimSpace(id), "#")
 	text = strings.TrimSpace(strings.ReplaceAll(text, "\r", ""))
-	if !answerIDRe.MatchString(id) {
-		return errors.New("bad item id")
-	}
-	if text == "" {
-		return errors.New("the answer is empty")
-	}
-	if len(text) > maxAnswer {
-		return fmt.Errorf("the answer is over %d characters: say it in a session instead", maxAnswer)
-	}
-	var item *Item
-	for i := range a.Open {
-		if strings.TrimPrefix(a.Open[i].ID, "#") == id {
-			item = &a.Open[i]
-		}
-	}
-	if item == nil {
-		return fmt.Errorf("#%s is not an open item of %s", id, a.Name)
+	item, err := checkAnswer(a, id, text)
+	if err != nil {
+		return err
 	}
 
 	var b strings.Builder
