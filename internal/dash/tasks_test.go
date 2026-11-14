@@ -3,6 +3,7 @@ package dash
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -852,14 +853,44 @@ func TestChatImageRoute(t *testing.T) {
 	}
 
 	// Rendering: allowed images become thumbnails, others stay text.
-	s := &webServer{src: WebSource{ImageRoots: []string{root}}}
-	md := string(paneMarkdown("Look: ![the shot]("+ok+") and ![no]("+filepath.Join(outside, "secret.png")+")", s.chatImageURL))
-	if !strings.Contains(md, `<a class="tk-img" href="/img?p=`) || !strings.Contains(md, `alt="the shot"`) || !strings.Contains(md, "![no](") {
+	scratch := t.TempDir()
+	s := &webServer{src: WebSource{ImageRoots: []string{root}, ScratchDir: scratch}}
+	ws := &Workspace{Name: "personal", Root: "/x/personal"}
+	a := &Agent{Name: "friday", Transcript: "/t/-x-personal/sid1.jsonl", Live: &LivePane{Session: &struct {
+		Agent string `json:"agent"`
+		Value string `json:"value"`
+	}{"claude", "sid1"}}}
+	link := s.imageLinker(ws, a)
+	md := string(paneMarkdown("Look: ![the shot]("+ok+") and ![no]("+filepath.Join(outside, "secret.png")+")", link))
+	if !strings.Contains(md, `<a class="tk-img" href="/img?agent=friday&amp;p=`) || !strings.Contains(md, `alt="the shot"`) || !strings.Contains(md, "![no](") {
 		t.Errorf("markdown images:\n%s", md)
 	}
-	text, links := s.t3Images("Here\n[Attached image \"image.png\" is saved at: " + ok + "]\n[Attached image \"x.png\" is saved at: /etc/x.png]")
+	// Scratch: only the shown session's folder, not its neighbours'.
+	mine := filepath.Join(scratch, "-x-personal", "sid1", "scratchpad", "a.png")
+	other := filepath.Join(scratch, "-x-personal", "sid2", "scratchpad", "b.png")
+	for _, p := range []string{mine, other} {
+		os.MkdirAll(filepath.Dir(p), 0o700)
+		os.WriteFile(p, pngBytes, 0o600)
+	}
+	if link(mine) == "" || link(other) != "" {
+		t.Errorf("scratch links: mine %q, other %q", link(mine), link(other))
+	}
+	if _, _, ok := s.chatImagePath(mine, ""); ok {
+		t.Error("without the session, its scratch is not served")
+	}
+	dotdot := &Agent{Name: "friday", Transcript: a.Transcript, Live: &LivePane{Session: &struct {
+		Agent string `json:"agent"`
+		Value string `json:"value"`
+	}{"claude", ".."}}}
+	if got := s.sessionScratch(ws, dotdot); got != "" {
+		t.Errorf("a session id of .. must not name a folder: %q", got)
+	}
+	if got := s.imageLinker(ws, &Agent{Name: "q"})(mine); got != "" {
+		t.Errorf("an agent with no session gets no scratch: %q", got)
+	}
+	text, links := s.t3Images("Here\n[Attached image \"image.png\" is saved at: "+ok+"]\n[Attached image \"x.png\" is saved at: /etc/x.png]", link)
 	t3 := "Look [Image: image.png; ref=image_26aa] here\n\n<t3_context version=\"1\">\n<context kind=\"image\">\nname: image.png\n</context>\n</t3_context>"
-	if got, _ := s.t3Images(t3); got != "Look here" {
+	if got, _ := s.t3Images(t3, link); got != "Look here" {
 		t.Errorf("t3 bookkeeping left in: %q", got)
 	}
 	if len(links) != 1 || strings.Contains(text, ok) || !strings.Contains(text, "/etc/x.png") {
@@ -1191,6 +1222,28 @@ func TestTasksReplyChatOrInbox(t *testing.T) {
 	}
 	if _, body = get(t, h, "/tasks/personal/friday"); !strings.Contains(body, "Answered") {
 		t.Error("the row should show Answered")
+	}
+
+	// Too long: refused before it reaches the chat, so a retry cannot send
+	// it twice.
+	_ = os.Remove(inbox)
+	sent = nil
+	if code, _ := multipartAnswer(t, h, url.Values{"ws": {"personal"}, "agent": {"friday"}, "id": {"7"}, "text": {strings.Repeat("x", maxAnswer)}, "to": {"chat"}}); code != http.StatusBadRequest {
+		t.Errorf("an answer over the limit = %d", code)
+	}
+	if len(sent) != 0 {
+		t.Errorf("a refused answer must not reach the chat: %d sent", len(sent))
+	}
+	// The send fails (the pane closed since the page was drawn): the
+	// answer goes to the inbox instead of being lost.
+	h = NewWebHandler(WebSource{FleetRoot: parent, Options: live, Now: func() time.Time { return tasksNow },
+		Prompt: func(pane, text string) error { return errors.New("no such pane") }})
+	if code, body = multipartAnswer(t, h, url.Values{"ws": {"personal"}, "agent": {"friday"}, "id": {"7"}, "text": {"Yes, go."}, "to": {"chat"}}); code != http.StatusNoContent {
+		t.Fatalf("answer after a failed send = %d %s", code, body)
+	}
+	data, _ = os.ReadFile(inbox)
+	if !strings.Contains(string(data), "answer #7 (Irfan, via dash) — UNPROCESSED") || !strings.Contains(string(data), "> Yes, go.") {
+		t.Errorf("a failed send should land in the inbox:\n%s", data)
 	}
 
 	// Not running: the inbox, with the image saved beside it.

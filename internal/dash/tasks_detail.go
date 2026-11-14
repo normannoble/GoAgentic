@@ -147,13 +147,14 @@ func (s *webServer) paneChat(wsName, agent, here string) *taskChat {
 	}
 	// Real blocks for the agent's words, images where allowed, T3's
 	// attachments as pictures, and each run of tool steps as one line.
+	link := s.imageLinker(ws, a)
 	var chat []webChat
 	for _, e := range wa.Chat {
 		switch e.Kind {
 		case "agent":
-			e.HTML = paneMarkdown(e.Text, s.chatImageURL)
+			e.HTML = paneMarkdown(e.Text, link)
 		case "you":
-			text, links := s.t3Images(e.Text)
+			text, links := s.t3Images(e.Text, link)
 			e.Text, e.Images = text, append(e.Images, links...)
 		case "tools":
 			if n := len(chat); n > 0 && chat[n-1].Kind == "tools" {
